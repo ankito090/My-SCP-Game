@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Escape the SCP — 3D (Daytime)</title>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: #dcebf6;
+      font-family: Inter, system-ui, Segoe UI, Roboto, Arial;
+    }
+
+    #app {
+      height: 100%;
+      width: 100%;
+      position: relative;
+      overflow: hidden
+    }
+
+    #menu,
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 30
+    }
+
+    .menu-inner {
+      background: rgba(255, 255, 255, 0.85);
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .15);
+      text-align: center
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 0;
+      background: #0f172a;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer
+    }
+
+    #stage {
+      position: absolute;
+      inset: 0;
+      display: none
+    }
+
+    #hud {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      z-index: 25;
+      background: rgba(255, 255, 255, .9);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-weight: 700
+    }
+
+    #useBtn {
+      position: absolute;
+      left: 12px;
+      bottom: 16px;
+      z-index: 25;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 0;
+      background: #0f172a;
+      color: #fff;
+      display: none
+    }
+
+    .controls {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      display: grid;
+      grid-template-columns: repeat(3, 56px);
+      grid-template-rows: repeat(3, 56px);
+      gap: 6px;
+      z-index: 25
+    }
+
+    .controls button {
+      border-radius: 12px;
+      border: 0;
+      background: rgba(15, 23, 42, .85);
+      color: #fff;
+      font-weight: 800
+    }
+
+    #buttonLabel {
+      position: absolute;
+      z-index: 26;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .9);
+      display: none;
+      font-weight: 700
+    }
+
+    #pl-notice {
+      position: absolute;
+      left: 50%;
+      top: 10px;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      z-index: 50;
+      display: none
+    }
+
+    canvas {
+      display: block
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <section id="menu">
+      <div class="menu-inner">
+        <div class="title">Escape the SCP</div>
+        <div style="color:#334155;margin-bottom:12px">Daytime 3D maze — find the button before the picture finds you.
+        </div>
+        <button class="btn" id="startBtn">Start</button>
+      </div>
+    </section>
+
+    <section id="stage">
+      <div id="hud">Maze <strong id="mazeNum">#1</strong> • Status: <strong id="status">READY</strong></div>
+      <button id="useBtn">PRESS (E)</button>
+      <div class="controls" id="controls">
+        <button class="empty" style="visibility:hidden"></button>
+        <button data-dir="up">▲</button>
+        <button class="empty" style="visibility:hidden"></button>
+        <button data-dir="left">◀</button>
+        <button class="empty" style="visibility:hidden"></button>
+        <button data-dir="right">▶</button>
+        <button class="empty" style="visibility:hidden"></button>
+        <button data-dir="down">▼</button>
+        <button class="empty" style="visibility:hidden"></button>
+      </div>
+      <div id="buttonLabel">BUTTON</div>
+      <div id="pl-notice"></div>
+    </section>
+
+    <section id="overlay" style="display:none">
+      <div class="menu-inner" id="resultCard">
+        <h2 id="resultTitle">You Escaped!</h2>
+        <p id="resultText" style="color:#475569">...</p>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:10px">
+          <button class="btn" id="againBtn">Play Again</button>
+          <button class="btn" id="menuBtn">Main Menu</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Three.js -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+
+  <script>
+    (() => {
+      // ---------- CONFIG ----------
+      const CONFIG = {
+        GRID_W: 11, GRID_H: 9, CELL: 2.5, WALL_H: 2.8,
+        PLAYER_STEP_MS: 220, SCP_STEP_MS: 260, PATH_RECALC_MS: 350,
+        MAX_HEAR_DIST: 18,
+        PICTURE_SRC: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Polish_Photograph_-_Portrait_of_a_Man.jpg/320px-Polish_Photograph_-_Portrait_of_a_Man.jpg',
+        BUTTON_LABEL: 'Press it'
+      };
+
+      // DOM
+      const menu = document.getElementById('menu');
+      const startBtn = document.getElementById('startBtn');
+      const stage = document.getElementById('stage');
+      const hud = document.getElementById('hud');
+      const statusEl = document.getElementById('status');
+      const mazeNumEl = document.getElementById('mazeNum');
+      const overlay = document.getElementById('overlay');
+      const resultTitle = document.getElementById('resultTitle');
+      const resultText = document.getElementById('resultText');
+      const againBtn = document.getElementById('againBtn');
+      const menuBtn = document.getElementById('menuBtn');
+      const controls = document.getElementById('controls');
+      const useBtn = document.getElementById('useBtn');
+      const buttonLabel = document.getElementById('buttonLabel');
+      const plNotice = document.getElementById('pl-notice');
+
+      // Audio placeholders (replace with real URLs/base64 as needed)
+      const chaseAudio = new Audio(); chaseAudio.loop = true; chaseAudio.volume = 0;
+      const winAudio = new Audio(); const lossAudio = new Audio();
+
+      // Maze generation (recursive backtracker)
+      const DIRS = [[0, -1, 'N'], [1, 0, 'E'], [0, 1, 'S'], [-1, 0, 'W']];
+      const OPP = { N: 'S', S: 'N', E: 'W', W: 'E' };
+      let seed = Math.floor(Math.random() * 1e9);
+      function rand() { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) / 4294967296; }
+
+      function genMaze(W, H) {
+        const grid = Array.from({ length: H }, () => Array.from({ length: W }, () => ({ N: true, E: true, S: true, W: true, vis: false })));
+        const stack = []; const s = [Math.floor(rand() * W), Math.floor(rand() * H)];
+        stack.push(s); grid[s[1]][s[0]].vis = true;
+        while (stack.length) {
+          const [cx, cy] = stack[stack.length - 1];
+          const dirs = DIRS.slice().sort(() => rand() - .5);
+          let moved = false;
+          for (const [dx, dy, dk] of dirs) {
+            const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            if (!grid[ny][nx].vis) {
+              grid[cy][cx][dk] = false; grid[ny][nx][OPP[dk]] = false;
+              grid[ny][nx].vis = true; stack.push([nx, ny]); moved = true; break;
+            }
+          }
+          if (!moved) stack.pop();
+        }
+        return grid;
+      }
+
+      // A* on grid
+      function astar(grid, sx, sy, tx, ty) {
+        const H = grid.length, W = grid[0].length;
+        const open = new Set(), came = {}, g = {}, f = {};
+        const key = (x, y) => x + ',' + y, heur = (x, y) => Math.abs(x - tx) + Math.abs(y - ty);
+        const sK = key(sx, sy); g[sK] = 0; f[sK] = heur(sx, sy); open.add(sK);
+        while (open.size) {
+          let cur = null, best = Infinity; for (const k of open) { if (f[k] < best) { best = f[k]; cur = k; } }
+          const [cx, cy] = cur.split(',').map(Number);
+          if (cx === tx && cy === ty) { const path = [[cx, cy]]; let k = cur; while (came[k]) { k = came[k]; path.push(k.split(',').map(Number)) } return path.reverse(); }
+          open.delete(cur);
+          const cell = grid[cy][cx]; const neigh = [];
+          if (!cell.N) neigh.push([cx, cy - 1]); if (!cell.S) neigh.push([cx, cy + 1]); if (!cell.W) neigh.push([cx - 1, cy]); if (!cell.E) neigh.push([cx + 1, cy]);
+          for (const [nx, ny] of neigh) {
+            const nk = key(nx, ny), tentative = (g[cur] || Infinity) + 1;
+            if (tentative < (g[nk] || Infinity)) { came[nk] = cur; g[nk] = tentative; f[nk] = tentative + heur(nx, ny); open.add(nk); }
+          }
+        }
+        return null;
+      }
+
+      // THREE scene
+      let scene, camera, renderer;
+      let walls = [], floorMesh = null, scpMesh = null, goalMesh = null;
+      let GRID_W, GRID_H, grid, C;
+      let running = false, state = 'menu', mazeCount = 0, pathTimer = null;
+
+      const player = { x: 0, y: 0, moving: false, from: [0, 0], to: [0, 0], start: 0, yaw: 0 };
+      const scp = { x: 0, y: 0, moving: false, from: [0, 0], to: [0, 0], start: 0, path: [] };
+      const goal = { x: 0, y: 0 }; // <-- FIX: define goal to avoid ReferenceError
+
+      // input
+      const keys = { KeyW: 0, KeyA: 0, KeyS: 0, KeyD: 0, KeyE: 0 };
+      window.addEventListener('keydown', e => { if (keys[e.code] !== undefined) { keys[e.code] = 1; e.preventDefault(); } });
+      window.addEventListener('keyup', e => { if (keys[e.code] !== undefined) { keys[e.code] = 0; e.preventDefault(); } });
+
+      controls.addEventListener('click', e => {
+        const dir = e.target.getAttribute('data-dir'); if (!dir || state !== 'run') return;
+        attemptStep(dir);
+      });
+      useBtn.addEventListener('click', () => { tryUse() });
+
+      // --- WASD relative-to-look helpers ---
+      // Facing index based on yaw: 0=up(N), 1=left(W), 2=down(S), 3=right(E)
+      function facingIndex() {
+        const TWO_PI = Math.PI * 2;
+        let ang = player.yaw % TWO_PI; if (ang < 0) ang += TWO_PI; // normalize to [0, 2π)
+        return Math.floor((ang + Math.PI / 4) / (Math.PI / 2)) % 4; // quantize to 4 cardinals
+      }
+      function forwardDir() { const map = ['up', 'left', 'down', 'right']; return map[facingIndex()]; }
+      function leftDir() { const map = ['up', 'left', 'down', 'right']; return map[(facingIndex() + 1) % 4]; }
+      function backDir() { const map = ['up', 'left', 'down', 'right']; return map[(facingIndex() + 2) % 4]; }
+      function rightDir() { const map = ['up', 'left', 'down', 'right']; return map[(facingIndex() + 3) % 4]; }
+
+      // Lightweight self-tests (won't break gameplay if they fail)
+      (function __sanityTests() {
+        console.assert(goal && typeof goal.x === 'number' && typeof goal.y === 'number', 'Goal object is missing or malformed');
+        const y0 = player.yaw;
+        player.yaw = 0; console.assert(forwardDir() === 'up' && rightDir() === 'right' && leftDir() === 'left' && backDir() === 'down', 'Yaw 0 mapping failed');
+        player.yaw = Math.PI / 2; console.assert(forwardDir() === 'left' && rightDir() === 'up' && backDir() === 'right' && leftDir() === 'down', 'Yaw π/2 mapping failed');
+        player.yaw = Math.PI; console.assert(forwardDir() === 'down', 'Yaw π mapping failed');
+        player.yaw = -Math.PI / 2; console.assert(forwardDir() === 'right', 'Yaw -π/2 mapping failed');
+        player.yaw = y0;
+      })();
+
+      function initThree() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x9ecffb); // daytime sky blue
+
+        // camera
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.6, 0);
+
+        // renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('stage').appendChild(renderer.domElement);
+
+        // lighting: sunlight + hemisphere for brightness
+        const hemi = new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 0.9);
+        scene.add(hemi);
+        const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+        sun.position.set(10, 20, 10);
+        scene.add(sun);
+
+        window.addEventListener('resize', () => {
+          camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // pointer lock (safe): may be blocked in sandbox; we fall back to drag-look
+        renderer.domElement.addEventListener('click', () => {
+          if (state === 'run' && document.pointerLockElement !== renderer.domElement) {
+            try { renderer.domElement.requestPointerLock?.(); }
+            catch (err) { plNotice.style.display = 'block'; plNotice.textContent = 'Pointer lock blocked. Use drag-to-look or open in a new tab with allow-pointer-lock.'; }
+          }
+        });
+
+        // mouse look (pointer lock) + drag fallback
+        let dragging = false, lastX = 0;
+        document.addEventListener('mousemove', (e) => {
+          if (state !== 'run') return;
+          if (document.pointerLockElement === renderer.domElement) { player.yaw -= e.movementX * 0.0025; }
+          else if (dragging) { const dx = e.clientX - lastX; lastX = e.clientX; player.yaw -= dx * 0.0025; }
+        });
+        renderer.domElement.addEventListener('mousedown', (e) => { if (state === 'run') { dragging = true; lastX = e.clientX; } });
+        document.addEventListener('mouseup', () => { dragging = false; });
+
+        // touch look (mobile)
+        let lastTouchX = 0;
+        renderer.domElement.addEventListener('touchstart', (e) => { if (state === 'run' && e.touches.length === 1) { lastTouchX = e.touches[0].clientX; } });
+        renderer.domElement.addEventListener('touchmove', (e) => { if (state !== 'run') return; if (e.touches.length === 1) { const dx = e.touches[0].clientX - lastTouchX; lastTouchX = e.touches[0].clientX; player.yaw -= dx * 0.005; } }, { passive: false });
+      }
+
+      // build maze meshes visible in daytime
+      function buildMaze() {
+        // clear
+        for (const m of walls) scene.remove(m); walls = [];
+        if (floorMesh) scene.remove(floorMesh);
+        if (scpMesh) scene.remove(scpMesh);
+        if (goalMesh) scene.remove(goalMesh);
+
+        C = CONFIG.CELL;
+        const wallH = CONFIG.WALL_H;
+
+        // floor: slightly mossy
+        const floorGeo = new THREE.PlaneGeometry(GRID_W * C, GRID_H * C);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0xe6ede6 });
+        floorMesh = new THREE.Mesh(floorGeo, floorMat);
+        floorMesh.rotation.x = -Math.PI / 2;
+        floorMesh.position.set(GRID_W * C / 2 - C / 2, 0, GRID_H * C / 2 - C / 2);
+        scene.add(floorMesh);
+
+        // walls (thin extruded boxes)
+        const wallColor = 0x9b4b3b; // brick-like tint
+        const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.9 });
+        for (let y = 0; y < GRID_H; y++) {
+          for (let x = 0; x < GRID_W; x++) {
+            const cell = grid[y][x];
+            const cx = x * C, cz = y * C;
+            // North
+            if (cell.N) { const g = new THREE.BoxGeometry(C, wallH, 0.12); const m = new THREE.Mesh(g, wallMat); m.position.set(cx, wallH / 2, cz - C / 2); scene.add(m); walls.push(m); }
+            // South
+            if (cell.S) { const g = new THREE.BoxGeometry(C, wallH, 0.12); const m = new THREE.Mesh(g, wallMat); m.position.set(cx, wallH / 2, cz + C / 2); scene.add(m); walls.push(m); }
+            // West
+            if (cell.W) { const g = new THREE.BoxGeometry(0.12, wallH, C); const m = new THREE.Mesh(g, wallMat); m.position.set(cx - C / 2, wallH / 2, cz); scene.add(m); walls.push(m); }
+            // East
+            if (cell.E) { const g = new THREE.BoxGeometry(0.12, wallH, C); const m = new THREE.Mesh(g, wallMat); m.position.set(cx + C / 2, wallH / 2, cz); scene.add(m); walls.push(m); }
+          }
+        }
+
+        // Goal pillar + glowing button
+        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 16), new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.8 }));
+        const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.12, 16), new THREE.MeshStandardMaterial({ color: 0x3ee7b4, emissive: 0x1f9e89, emissiveIntensity: 0.6 }));
+        pillar.add(btn); btn.position.y = 0.36;
+        goalMesh = new THREE.Group(); goalMesh.add(pillar); scene.add(goalMesh);
+
+        // SCP billboard (placeholder humanoid: white plane)
+        const tex = new THREE.TextureLoader().load(CONFIG.PICTURE_SRC);
+        const scpPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.6), new THREE.MeshBasicMaterial({ map: tex }));
+        scpMesh = new THREE.Group(); scpMesh.add(scpPlane); scene.add(scpMesh);
+        scpPlane.position.z = 0.01;
+      }
+
+      // convert cell->world center
+      function cellToWorld(cx, cy) {
+        return new THREE.Vector3(cx * C, 0, cy * C);
+      }
+
+      // place entities (spreaded)
+      function placeEntities() {
+        function rcell() { return [Math.floor(rand() * GRID_W), Math.floor(rand() * GRID_H)]; }
+        let px, py, gx, gy, sx, sy;
+        [px, py] = rcell();
+        do { [gx, gy] = rcell(); } while (Math.abs(gx - px) + Math.abs(gy - py) < (GRID_W + GRID_H) / 4);
+        do { [sx, sy] = rcell(); } while ((Math.abs(sx - px) + Math.abs(sy - py) < (GRID_W + GRID_H) / 4) || (sx === gx && sy === gy));
+
+        player.x = px; player.y = py; player.from = [px, py]; player.to = [px, py]; player.yaw = 0;
+        const ppos = cellToWorld(px, py); camera.position.set(ppos.x, 1.6, ppos.z);
+
+        goal.x = gx; goal.y = gy; const gpos = cellToWorld(gx, gy); goalMesh.position.set(gpos.x, 0.35, gpos.z);
+        scp.x = sx; scp.y = sy; const spos = cellToWorld(sx, sy); scpMesh.position.set(spos.x, 0.8, spos.z);
+      }
+
+      // attempt tile step from UI or keys
+      function attemptStep(dir) {
+        if (player.moving || state !== 'run') return;
+        const cell = grid[player.y][player.x];
+        let nx = player.x, ny = player.y;
+        if (dir === 'up' && !cell.N) ny--;
+        else if (dir === 'down' && !cell.S) ny++;
+        else if (dir === 'left' && !cell.W) nx--;
+        else if (dir === 'right' && !cell.E) nx++;
+        if (nx === player.x && ny === player.y) return;
+        player.from = [player.x, player.y]; player.to = [nx, ny]; player.start = performance.now(); player.moving = true;
+      }
+
+      // keyboard-based mapping: W/A/S/D relative to camera yaw
+      function handleKeyboardInput() {
+        if (player.moving) return;
+        let want = null;
+        if (keys.KeyW) want = forwardDir();
+        else if (keys.KeyS) want = backDir();
+        else if (keys.KeyA) want = leftDir();
+        else if (keys.KeyD) want = rightDir();
+        if (want) attemptStep(want);
+        if (keys.KeyE) tryUse();
+      }
+
+      // update player interpolation
+      function updatePlayer() {
+        if (player.moving) {
+          const t = (performance.now() - player.start) / CONFIG.PLAYER_STEP_MS;
+          if (t >= 1) { player.x = player.to[0]; player.y = player.to[1]; player.moving = false; }
+          const ax = THREE.MathUtils.lerp(player.from[0], player.to[0], Math.min(1, t));
+          const ay = THREE.MathUtils.lerp(player.from[1], player.to[1], Math.min(1, t));
+          const pos = cellToWorld(ax, ay);
+          camera.position.x = pos.x; camera.position.z = pos.z;
+        }
+        // apply yaw (mouse/drag/touch look)
+        camera.rotation.y = player.yaw;
+      }
+
+      // SCP movement using its path list (smooth)
+      function updateSCP() {
+        // billboard facing player
+        scpMesh.lookAt(new THREE.Vector3(camera.position.x, scpMesh.position.y, camera.position.z));
+
+        if (!(scp.path && scp.path.length)) return;
+        if (!scp.moving) {
+          const next = scp.path.shift();
+          if (!next) return;
+          scp.from = [scp.x, scp.y]; scp.to = [next[0], next[1]]; scp.start = performance.now(); scp.moving = true;
+        }
+        const t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
+        if (t >= 1) { scp.x = scp.to[0]; scp.y = scp.to[1]; scp.moving = false; }
+        const ax = THREE.MathUtils.lerp(scp.from[0], scp.to[0], Math.min(1, t));
+        const ay = THREE.MathUtils.lerp(scp.from[1], scp.to[1], Math.min(1, t));
+        const pos = cellToWorld(ax, ay); scpMesh.position.x = pos.x; scpMesh.position.z = pos.z;
+
+        // check catch (simple cell overlap)
+        if (player.x === scp.x && player.y === scp.y) endGame(false);
+      }
+
+      // recompute path periodically
+      function startPathTimer() {
+        if (pathTimer) clearInterval(pathTimer);
+        pathTimer = setInterval(() => {
+          if (state !== 'run') return;
+          const p = astar(grid, scp.x, scp.y, player.x, player.y);
+          scp.path = p ? p.slice(1) : [];
+        }, CONFIG.PATH_RECALC_MS);
+      }
+
+      function updateChaseAudio() {
+        // simple distance falloff
+        const d = Math.abs(player.x - scp.x) + Math.abs(player.y - scp.y);
+        const vol = 1 - Math.min(d, CONFIG.MAX_HEAR_DIST) / CONFIG.MAX_HEAR_DIST;
+        chaseAudio.volume = Math.max(0, Math.min(1, vol));
+      }
+
+      function tryUse() {
+        if (player.x === goal.x && player.y === goal.y) endGame(true);
+      }
+
+      function endGame(win) {
+        state = 'over'; running = false;
+        try { chaseAudio.pause(); } catch (e) { }
+
+        // 🔑 Release the mouse so hover/click works
+        if (document.exitPointerLock) {
+          document.exitPointerLock();
+        }
+
+        resultTitle.textContent = win ? 'You Escaped!' : 'You Were Caught';
+        resultText.textContent = win ? 'You pressed the override. Freedom.' : 'The picture caught you.';
+        overlay.style.display = 'grid';
+        statusEl.textContent = win ? 'WIN' : 'LOSS';
+      }
+
+      // render loop
+      function animate() {
+        if (!running) return;
+        requestAnimationFrame(animate);
+        handleKeyboardInput();
+        updatePlayer();
+        updateSCP();
+        updateChaseAudio();
+        updateButtonLabel();
+        renderer.render(scene, camera);
+      }
+
+      function updateButtonLabel() {
+        if (state !== 'run') { buttonLabel.style.display = 'none'; return; }
+        const vec = cellToWorld(goal.x, goal.y).clone(); vec.y = 0.65; vec.project(camera);
+        const sx = (vec.x * 0.5 + 0.5) * window.innerWidth, sy = (-vec.y * 0.5 + 0.5) * window.innerHeight;
+        if (vec.z > 1 || vec.z < -1) { buttonLabel.style.display = 'none'; } else {
+          buttonLabel.style.display = 'block';
+          buttonLabel.textContent = CONFIG.BUTTON_LABEL;
+          buttonLabel.style.left = Math.round(sx - buttonLabel.offsetWidth / 2) + 'px';
+          buttonLabel.style.top = Math.round(sy - 30) + 'px';
+        }
+        useBtn.style.display = (player.x === goal.x && player.y === goal.y) ? 'block' : 'none';
+      }
+
+      // --- new game / setup ---
+      function newGame() {
+        // new seed, grid dims
+        seed = Math.floor(Math.random() * 1e9);
+        GRID_W = CONFIG.GRID_W; GRID_H = CONFIG.GRID_H;
+        grid = genMaze(GRID_W, GRID_H);
+        buildMaze();
+        placeEntities();
+        mazeCount++; mazeNumEl.textContent = '#' + mazeCount;
+        statusEl.textContent = 'RUN';
+        overlay.style.display = 'none'; menu.style.display = 'none'; stage.style.display = 'block';
+        state = 'run'; running = true;
+        try { chaseAudio.play(); } catch (e) { }
+        startPathTimer();
+        animate();
+      }
+
+      // --- UI wiring ---
+      startBtn.addEventListener('click', () => {
+        if (!scene) initThree();
+        newGame();
+      });
+      againBtn.addEventListener('click', () => { overlay.style.display = 'none'; newGame(); });
+      menuBtn.addEventListener('click', () => {
+        overlay.style.display = 'none'; stage.style.display = 'none'; menu.style.display = 'grid';
+        state = 'menu'; running = false; try { chaseAudio.pause(); } catch (e) { }
+      });
+
+      // mobile control buttons
+      controls.addEventListener('touchstart', (ev) => { ev.preventDefault(); });
+      controls.addEventListener('click', (ev) => { /* handled above */ });
+    })();
+  </script>
+</body>
+
+</html>
