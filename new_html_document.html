@@ -451,7 +451,7 @@
       // place entities (spreaded)
       function placeEntities() {
         // pick only valid walkable cells (grid[y][x] === 0)
-        function rcell() { 
+        function rcell() {
           let x, y;
           do {
             x = Math.floor(rand() * GRID_W);
@@ -459,30 +459,30 @@
           } while (grid[y][x] === 1); // avoid walls
           return [x, y];
         }
-      
+
         let px, py, gx, gy, sx, sy;
-      
+
         // --- Player spawn
         [px, py] = rcell();
-      
+
         // --- Goal spawn (not too close to player)
-        do { 
-          [gx, gy] = rcell(); 
+        do {
+          [gx, gy] = rcell();
         } while (Math.abs(gx - px) + Math.abs(gy - py) < (GRID_W + GRID_H) / 4);
-      
+
         // --- BFS to find all reachable cells from player
         function bfsReachable(startX, startY) {
           const visited = new Set();
           const q = [[startX, startY]];
           visited.add(startX + "," + startY);
-        
+
           while (q.length) {
             const [cx, cy] = q.shift();
             const neighbors = [
-              [cx+1, cy],
-              [cx-1, cy],
-              [cx, cy+1],
-              [cx, cy-1]
+              [cx + 1, cy],
+              [cx - 1, cy],
+              [cx, cy + 1],
+              [cx, cy - 1]
             ];
             for (const [nx, ny] of neighbors) {
               if (nx < 0 || ny < 0 || nx >= GRID_W || ny >= GRID_H) continue;
@@ -496,9 +496,9 @@
           }
           return Array.from(visited).map(s => s.split(",").map(Number));
         }
-      
+
         const reachableCells = bfsReachable(px, py);
-      
+
         // Pick SCP only from reachable cells
         let validCells = reachableCells.filter(([x, y]) => {
           return (
@@ -507,29 +507,29 @@
           );
         });
         if (validCells.length === 0) validCells = reachableCells; // fallback
-      
+
         [sx, sy] = validCells[Math.floor(Math.random() * validCells.length)];
-      
+
         // Debug info
         console.log("📍 Player:", px, py, "Goal:", gx, gy, "SCP:", sx, sy, "Reachable cells:", reachableCells.length);
-      
+
         // --- Assign positions
-        player.x = px; 
-        player.y = py; 
-        player.from = [px, py]; 
-        player.to = [px, py]; 
+        player.x = px;
+        player.y = py;
+        player.from = [px, py];
+        player.to = [px, py];
         player.yaw = 0;
-        const ppos = cellToWorld(px, py); 
+        const ppos = cellToWorld(px, py);
         camera.position.set(ppos.x, 1.6, ppos.z);
-      
-        goal.x = gx; 
-        goal.y = gy; 
-        const gpos = cellToWorld(gx, gy); 
+
+        goal.x = gx;
+        goal.y = gy;
+        const gpos = cellToWorld(gx, gy);
         goalMesh.position.set(gpos.x, 0.35, gpos.z);
-      
-        scp.x = sx; 
-        scp.y = sy; 
-        const spos = cellToWorld(sx, sy); 
+
+        scp.x = sx;
+        scp.y = sy;
+        const spos = cellToWorld(sx, sy);
         scpMesh.position.set(spos.x, 0.8, spos.z);
       }
 
@@ -578,71 +578,82 @@
       }
 
       function updateSCP() {
-  if (!(scp.path && scp.path.length)) return;
+        if (!(scp.path && scp.path.length)) return;
 
-  // Ensure no duplicate steps in the path
-  while (scp.path.length > 0 && scp.path[0][0] === scp.x && scp.path[0][1] === scp.y) {
-    console.log(`⚠️ [SKIP] Removing duplicate waypoint (${scp.path[0][0]}, ${scp.path[0][1]})`);
-    scp.path.shift();
-  }
-  if (scp.path.length === 0) return;
+        // Ensure no duplicate steps in the path
+        while (scp.path.length > 0 && scp.path[0][0] === scp.x && scp.path[0][1] === scp.y) {
+          console.log(`⚠️ [SKIP] Removing duplicate waypoint (${scp.path[0][0]}, ${scp.path[0][1]})`);
+          scp.path.shift();
+        }
+        if (scp.path.length === 0) return;
 
-  let t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
+        let t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
 
-  if (!scp.moving) {
-    const next = scp.path.shift();
-    if (!next) return;
+        if (!scp.moving) {
+          const next = scp.path.shift();
+          if (!next) return;
 
-    console.log(`👣 [INIT] SCP starts moving from (${scp.x}, ${scp.y}) → (${next[0]}, ${next[1]}) | Remaining path: ${scp.path.length}`);
+          console.log(`👣 [INIT] SCP starts moving from (${scp.x}, ${scp.y}) → (${next[0]}, ${next[1]}) | Remaining path: ${scp.path.length}`);
 
-    scp.from = [scp.x, scp.y];
-    scp.to = [next[0], next[1]];
-    scp.start = performance.now();
-    scp.moving = true;
-    t = 0;
-  }
+          scp.from = [scp.x, scp.y];
+          scp.to = [next[0], next[1]];
+          scp.start = performance.now();
+          scp.moving = true;
+          t = 0;
+        }
 
-  // Handle multiple steps in a single frame if needed
-  while (t >= 1 && scp.moving) {
-    scp.x = scp.to[0];
-    scp.y = scp.to[1];
-    console.log(`✅ [ARRIVE] SCP reached (${scp.x}, ${scp.y})`);
+        // Handle multiple steps in a single frame if needed
+        while (t >= 1 && scp.moving) {
+          scp.x = scp.to[0];
+          scp.y = scp.to[1];
+          console.log(`✅ [ARRIVE] SCP reached (${scp.x}, ${scp.y})`);
 
-    // Skip duplicates again
-    while (scp.path.length > 0 && scp.path[0][0] === scp.x && scp.path[0][1] === scp.y) {
-      console.log(`⚠️ [SKIP] Removing duplicate waypoint (${scp.path[0][0]}, ${scp.path[0][1]})`);
-      scp.path.shift();
-    }
+          // Skip duplicates again
+          while (scp.path.length > 0 && scp.path[0][0] === scp.x && scp.path[0][1] === scp.y) {
+            console.log(`⚠️ [SKIP] Removing duplicate waypoint (${scp.path[0][0]}, ${scp.path[0][1]})`);
+            scp.path.shift();
+          }
 
-    if (scp.path.length > 0) {
-      const next = scp.path.shift();
-      console.log(`👣 [CHAIN] SCP continues from (${scp.x}, ${scp.y}) → (${next[0]}, ${next[1]}) | Remaining path: ${scp.path.length}`);
+          if (scp.path.length > 0) {
+            const next = scp.path.shift();
+            console.log(`👣 [CHAIN] SCP continues from (${scp.x}, ${scp.y}) → (${next[0]}, ${next[1]}) | Remaining path: ${scp.path.length}`);
 
-      scp.from = [scp.x, scp.y];
-      scp.to = [next[0], next[1]];
-      scp.start = performance.now();
-      t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
-    } else {
-      scp.moving = false;
-      break;
-    }
-  }
+            scp.from = [scp.x, scp.y];
+            scp.to = [next[0], next[1]];
+            scp.start = performance.now();
+            t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
+          } else {
+            scp.moving = false;
+            break;
+          }
+        }
 
-  if (scp.moving) {
-    const ax = THREE.MathUtils.lerp(scp.from[0], scp.to[0], Math.min(1, t));
-    const ay = THREE.MathUtils.lerp(scp.from[1], scp.to[1], Math.min(1, t));
-    const pos = cellToWorld(ax, ay);
-    scpMesh.position.x = pos.x;
-    scpMesh.position.z = pos.z;
+        if (scp.moving) {
+          const ax = THREE.MathUtils.lerp(scp.from[0], scp.to[0], Math.min(1, t));
+          const ay = THREE.MathUtils.lerp(scp.from[1], scp.to[1], Math.min(1, t));
+          const pos = cellToWorld(ax, ay);
+          scpMesh.position.x = pos.x;
+          scpMesh.position.z = pos.z;
 
-    console.log(`➡️ [MOVE] Interpolating between (${scp.from[0]}, ${scp.from[1]}) → (${scp.to[0]}, ${scp.to[1]}) | t=${t.toFixed(2)}`);
-  }
+          console.log(`➡️ [MOVE] Interpolating between (${scp.from[0]}, ${scp.from[1]}) → (${scp.to[0]}, ${scp.to[1]}) | t=${t.toFixed(2)}`);
+        }
 
-  if (player.x === scp.x && player.y === scp.y) {
-    console.log("💀 SCP caught the player!");
-    endGame(false);
-  }
-}
+        // === 🔥 Billboard Effect (face the player without using playerMesh) ===
+        // Compute player's world position and keep Y at the SCP's current Y to avoid tilting.
+        const playerWorld = cellToWorld(player.x, player.y);
+        const lookTarget = new THREE.Vector3(playerWorld.x, scpMesh.position.y, playerWorld.z);
+        scpMesh.lookAt(lookTarget);
+
+        // Debug: show yaw (rotation around Y axis) and the target cell
+        const yaw = scpMesh.rotation.y;
+        console.log(`🧭 [BILLBOARD] Yaw=${yaw.toFixed(3)} → player at (${player.x}, ${player.y})`);
+
+        if (player.x === scp.x && player.y === scp.y) {
+          console.log("💀 SCP caught the player!");
+          endGame(false);
+        }
+      }
+
 
 
 
@@ -718,13 +729,13 @@
         const cameFrom = {};
         const gScore = {};
         const fScore = {};
-      
+
         function key(x, y) { return `${x},${y}`; }
         function heuristic(x, y) { return Math.abs(x - gx) + Math.abs(y - gy); }
-      
+
         gScore[key(sx, sy)] = 0;
         fScore[key(sx, sy)] = heuristic(sx, sy);
-      
+
         while (open.length > 0) {
           // pick lowest fScore
           let currentIndex = 0;
@@ -733,9 +744,9 @@
               currentIndex = i;
             }
           }
-        
+
           const [cx, cy] = open.splice(currentIndex, 1)[0];
-        
+
           if (cx === gx && cy === gy) {
             const path = [[cx, cy]];
             let k = key(cx, cy);
@@ -746,21 +757,21 @@
             }
             return path;
           }
-        
+
           const neighbors = [];
           const cell = grid[cy][cx];
-        
+
           if (!cell.N) neighbors.push([cx, cy - 1]);
           if (!cell.S) neighbors.push([cx, cy + 1]);
           if (!cell.W) neighbors.push([cx - 1, cy]);
           if (!cell.E) neighbors.push([cx + 1, cy]);
-        
+
           for (const [nx, ny] of neighbors) {
             if (nx < 0 || ny < 0 || nx >= GRID_W || ny >= GRID_H) continue;
-          
+
             const nk = key(nx, ny);
             const tentativeG = gScore[key(cx, cy)] + 1;
-          
+
             if (gScore[nk] === undefined || tentativeG < gScore[nk]) {
               cameFrom[nk] = [cx, cy];
               gScore[nk] = tentativeG;
@@ -771,7 +782,7 @@
             }
           }
         }
-      
+
         return null; // no path
       }
 
@@ -780,7 +791,7 @@
       function newGame() {
         // new seed, grid dims
         seed = Math.floor(Math.random() * 1e9);
-        GRID_W = CONFIG.GRID_W; 
+        GRID_W = CONFIG.GRID_W;
         GRID_H = CONFIG.GRID_H;
         grid = genMaze(GRID_W, GRID_H);
         buildMaze();
@@ -794,14 +805,14 @@
           console.warn("⚠️ No path at game start! Forcing SCP next to player.");
           // Force SCP to spawn beside player on a walkable tile
           const neighbors = [
-            [player.x+1, player.y],
-            [player.x-1, player.y],
-            [player.x, player.y+1],
-            [player.x, player.y-1]
+            [player.x + 1, player.y],
+            [player.x - 1, player.y],
+            [player.x, player.y + 1],
+            [player.x, player.y - 1]
           ];
           for (const [nx, ny] of neighbors) {
             if (nx >= 0 && ny >= 0 && nx < GRID_W && ny < GRID_H && grid[ny][nx] === 0) {
-              scp.x = nx; 
+              scp.x = nx;
               scp.y = ny;
               const spos = cellToWorld(nx, ny);
               scpMesh.position.set(spos.x, 0.8, spos.z);
@@ -811,25 +822,25 @@
           p = astar(grid, scp.x, scp.y, player.x, player.y);
         }
         scp.path = p ? p.slice(1) : [];
-      
+
         console.log("✅ Initial path length:", scp.path ? scp.path.length : "none");
-      
-        mazeCount++; 
+
+        mazeCount++;
         mazeNumEl.textContent = '#' + mazeCount;
         statusEl.textContent = 'RUN';
-        overlay.style.display = 'none'; 
-        menu.style.display = 'none'; 
+        overlay.style.display = 'none';
+        menu.style.display = 'none';
         stage.style.display = 'block';
-        state = 'run'; 
+        state = 'run';
         running = true;
-      
+
         try {
           chaseAudio.currentTime = 0;   // rewind to start
           chaseAudio.play().catch(() => {
             // If autoplay blocked, ignore
           });
         } catch (e) { }
-      
+
         startPathTimer();
         animate();
       }
