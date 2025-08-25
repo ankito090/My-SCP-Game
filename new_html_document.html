@@ -185,7 +185,7 @@
         GRID_W: 11, GRID_H: 9, CELL: 2.5, WALL_H: 2.8,
         PLAYER_STEP_MS: 220, SCP_STEP_MS: 260, PATH_RECALC_MS: 350,
         MAX_HEAR_DIST: 18,
-        PICTURE_SRC: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6d/Polish_Photograph_-_Portrait_of_a_Man.jpg/320px-Polish_Photograph_-_Portrait_of_a_Man.jpg',
+        PICTURE_SRC: 'gaigond.jpg',
         BUTTON_LABEL: 'Press it'
       };
 
@@ -409,7 +409,28 @@
         const tex = new THREE.TextureLoader().load(CONFIG.PICTURE_SRC);
         const scpPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.6), new THREE.MeshBasicMaterial({ map: tex }));
         scpMesh = new THREE.Group(); scpMesh.add(scpPlane); scene.add(scpMesh);
+        
+        // --- TEMPORARY DEBUG LABEL ---
+        const labelCanvas = document.createElement('canvas');
+        labelCanvas.width = 256;
+        labelCanvas.height = 64;
+        const ctx = labelCanvas.getContext('2d');
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, labelCanvas.width, labelCanvas.height);
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 32px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText("He's Here", labelCanvas.width/2, labelCanvas.height/2);
+
+        const labelTex = new THREE.CanvasTexture(labelCanvas);
+        const labelMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true });
+        const label = new THREE.Sprite(labelMat);
+        label.scale.set(3, 1, 1);   // size of the text sprite
+        label.position.set(0, 2.5, 0); // float above SCP
+        scpMesh.add(label);
         scpPlane.position.z = 0.01;
+        scpPlane.rotation.y = Math.PI;
       }
 
       // convert cell->world center
