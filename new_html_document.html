@@ -182,7 +182,7 @@
     (() => {
       // ---------- CONFIG ----------
       const CONFIG = {
-        GRID_W: 20, GRID_H: 9, CELL: 2.8, WALL_H: 2.8,
+        GRID_W: 11, GRID_H: 9, CELL: 3.2, WALL_H: 2.8,
         PLAYER_STEP_MS: 220, SCP_STEP_MS: 260, PATH_RECALC_MS: 350,
         MAX_HEAR_DIST: 18,
         PICTURE_SRC: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Hitler_portrait_crop.jpg/960px-Hitler_portrait_crop.jpg',
@@ -650,7 +650,7 @@
 
         if (player.x === scp.x && player.y === scp.y) {
           console.log("💀 SCP caught the player!");
-          endGame(false);
+          triggerJumpscare();   // 🔥 instead of endGame(false)
         }
       }
 
@@ -697,6 +697,88 @@
         overlay.style.display = 'grid';
         statusEl.textContent = win ? 'WIN' : 'LOSS';
       }
+
+      function triggerJumpscare() {
+        if (window.__jumpScareActive) return;
+        window.__jumpScareActive = true;
+
+        const cam = camera;
+        const scpPos = scpMesh.position.clone();
+
+        // Disable player controls during jumpscare
+        const hadControls = typeof controls !== "undefined" && controls;
+        const prevControlsEnabled = hadControls ? controls.enabled : null;
+        if (hadControls) controls.enabled = false;
+
+        // Save original states
+        const saved = {
+          fov: cam.fov,
+          scpScale: scpMesh.scale.clone()
+        };
+
+        // Compute direction from player → SCP
+        const playerPos = cellToWorld(player.x, player.y);
+        const targetDir = scpPos.clone().sub(playerPos).setY(0).normalize();
+
+        // Rotate player to face SCP (fixes "doesn’t look at SCP" issue)
+        if (hadControls && controls.getObject) {
+          const targetYaw = Math.atan2(targetDir.x, targetDir.z);
+          controls.getObject().rotation.y = targetYaw;
+        }
+
+        // Animation settings
+        const duration = 800; // 1s
+        const start = performance.now();
+
+        function easeInOutCubic(t) {
+          return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        function frame(now) {
+          const t = Math.min(1, (now - start) / duration);
+          const k = easeInOutCubic(t);
+
+          // Zoom effect
+          cam.fov = THREE.MathUtils.lerp(saved.fov, 40, k);
+          cam.updateProjectionMatrix();
+
+          // SCP grows larger
+          const scale = THREE.MathUtils.lerp(1, 1.5, k);
+          scpMesh.scale.set(
+            saved.scpScale.x * scale,
+            saved.scpScale.y * scale,
+            saved.scpScale.z * scale
+          );
+
+          // Camera shake (subtle)
+          const shake = (1 - t) * 0.15;
+          cam.position.x += (Math.random() - 0.5) * shake;
+          cam.position.y += (Math.random() - 0.5) * shake * 0.5;
+          cam.position.z += (Math.random() - 0.5) * shake;
+
+          if (t < 1) {
+            requestAnimationFrame(frame);
+          } else {
+            // Reset
+            cam.fov = saved.fov;
+            cam.updateProjectionMatrix();
+            scpMesh.scale.copy(saved.scpScale);
+
+            // Restore controls (fixes mouse inverted issue)
+            if (hadControls) controls.enabled = prevControlsEnabled;
+
+            window.__jumpScareActive = false;
+
+            // End game
+            endGame(false);
+          }
+        }
+
+        requestAnimationFrame(frame);
+      }
+
+
+
 
       // render loop
       function animate() {
