@@ -579,43 +579,43 @@
 
       // SCP movement using its path list (smooth)
       function updateSCP() {
-      if (!(scp.path && scp.path.length)) return;
-          
-      if (!scp.moving) {
-        const next = scp.path.shift();
-        if (!next) return;
+       if (!(scp.path && scp.path.length)) return;
+           
+       if (!scp.moving) {
+         const next = scp.path.shift();
+         if (!next) return;
+        
+         // Debug: SCP starting a new step
+         console.log(`👣 SCP preparing move from (${scp.x}, ${scp.y}) → (${next[0]}, ${next[1]}), path left: ${scp.path.length}`);
+        
+         scp.from = [scp.x, scp.y];
+         scp.to = [next[0], next[1]];
+         scp.start = performance.now();
+         scp.moving = true;
+       }
       
-        // Debug: SCP starting a new step
-        console.log(`👣 SCP preparing move from (${scp.x}, ${scp.y}) → (${next[0]}, ${next[1]}), path left: ${scp.path.length}`);
+       const t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
+       if (t >= 1) {
+         scp.x = scp.to[0];
+         scp.y = scp.to[1];
+         scp.moving = false;
+        
+         // Debug: SCP finished a step
+         console.log(`✅ SCP arrived at (${scp.x}, ${scp.y})`);
+       }
       
-        scp.from = [scp.x, scp.y];
-        scp.to = [next[0], next[1]];
-        scp.start = performance.now();
-        scp.moving = true;
-      }
-    
-      const t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
-      if (t >= 1) {
-        scp.x = scp.to[0];
-        scp.y = scp.to[1];
-        scp.moving = false;
+       const ax = THREE.MathUtils.lerp(scp.from[0], scp.to[0], Math.min(1, t));
+       const ay = THREE.MathUtils.lerp(scp.from[1], scp.to[1], Math.min(1, t));
+       const pos = cellToWorld(ax, ay);
+       scpMesh.position.x = pos.x;
+       scpMesh.position.z = pos.z;
       
-        // Debug: SCP finished a step
-        console.log(`✅ SCP arrived at (${scp.x}, ${scp.y})`);
+       // check collision
+       if (player.x === scp.x && player.y === scp.y) {
+         console.log("💀 SCP caught the player!");
+         endGame(false);
+       }
       }
-    
-      const ax = THREE.MathUtils.lerp(scp.from[0], scp.to[0], Math.min(1, t));
-      const ay = THREE.MathUtils.lerp(scp.from[1], scp.to[1], Math.min(1, t));
-      const pos = cellToWorld(ax, ay);
-      scpMesh.position.x = pos.x;
-      scpMesh.position.z = pos.z;
-    
-      // check collision
-      if (player.x === scp.x && player.y === scp.y) {
-        console.log("💀 SCP caught the player!");
-        endGame(false);
-      }
-    }
 
 
       function recalcSCPPath() {
@@ -683,7 +683,7 @@
         useBtn.style.display = (player.x === goal.x && player.y === goal.y) ? 'block' : 'none';
       }
 
-      // --- pathfinding --- 
+      // --- Fixed A* for cell objects with walls ---
       function astar(grid, sx, sy, gx, gy) {
         const open = [[sx, sy]];
         const cameFrom = {};
@@ -707,7 +707,6 @@
         
           const [cx, cy] = open.splice(currentIndex, 1)[0];
         
-          // reached goal
           if (cx === gx && cy === gy) {
             const path = [[cx, cy]];
             let k = key(cx, cy);
@@ -719,16 +718,16 @@
             return path;
           }
         
-          const neighbors = [
-            [cx + 1, cy],
-            [cx - 1, cy],
-            [cx, cy + 1],
-            [cx, cy - 1]
-          ];
+          const neighbors = [];
+          const cell = grid[cy][cx];
+        
+          if (!cell.N) neighbors.push([cx, cy - 1]);
+          if (!cell.S) neighbors.push([cx, cy + 1]);
+          if (!cell.W) neighbors.push([cx - 1, cy]);
+          if (!cell.E) neighbors.push([cx + 1, cy]);
         
           for (const [nx, ny] of neighbors) {
             if (nx < 0 || ny < 0 || nx >= GRID_W || ny >= GRID_H) continue;
-            if (grid[ny][nx] === 1) continue; // 1 = wall
           
             const nk = key(nx, ny);
             const tentativeG = gScore[key(cx, cy)] + 1;
