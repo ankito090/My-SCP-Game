@@ -173,7 +173,7 @@
     </section>
   </div>
 
-  <audio id="scpSound" src="WhatsApp Audio 2025-08-20 at 16.22.33_fb9db0eb.mp3" loop></audio>
+  <audio id="scpSound" src="gaigond_slang_1.mp3" loop></audio>
 
   <!-- Three.js -->
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
@@ -577,45 +577,74 @@
         camera.rotation.y = player.yaw;
       }
 
-      // SCP movement using its path list (smooth)
       function updateSCP() {
-       if (!(scp.path && scp.path.length)) return;
-           
-       if (!scp.moving) {
-         const next = scp.path.shift();
-         if (!next) return;
-        
-         // Debug: SCP starting a new step
-         console.log(`👣 SCP preparing move from (${scp.x}, ${scp.y}) → (${next[0]}, ${next[1]}), path left: ${scp.path.length}`);
-        
-         scp.from = [scp.x, scp.y];
-         scp.to = [next[0], next[1]];
-         scp.start = performance.now();
-         scp.moving = true;
-       }
-      
-       const t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
-       if (t >= 1) {
-         scp.x = scp.to[0];
-         scp.y = scp.to[1];
-         scp.moving = false;
-        
-         // Debug: SCP finished a step
-         console.log(`✅ SCP arrived at (${scp.x}, ${scp.y})`);
-       }
-      
-       const ax = THREE.MathUtils.lerp(scp.from[0], scp.to[0], Math.min(1, t));
-       const ay = THREE.MathUtils.lerp(scp.from[1], scp.to[1], Math.min(1, t));
-       const pos = cellToWorld(ax, ay);
-       scpMesh.position.x = pos.x;
-       scpMesh.position.z = pos.z;
-      
-       // check collision
-       if (player.x === scp.x && player.y === scp.y) {
-         console.log("💀 SCP caught the player!");
-         endGame(false);
-       }
-      }
+  if (!(scp.path && scp.path.length)) return;
+
+  // Ensure no duplicate steps in the path
+  while (scp.path.length > 0 && scp.path[0][0] === scp.x && scp.path[0][1] === scp.y) {
+    console.log(`⚠️ [SKIP] Removing duplicate waypoint (${scp.path[0][0]}, ${scp.path[0][1]})`);
+    scp.path.shift();
+  }
+  if (scp.path.length === 0) return;
+
+  let t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
+
+  if (!scp.moving) {
+    const next = scp.path.shift();
+    if (!next) return;
+
+    console.log(`👣 [INIT] SCP starts moving from (${scp.x}, ${scp.y}) → (${next[0]}, ${next[1]}) | Remaining path: ${scp.path.length}`);
+
+    scp.from = [scp.x, scp.y];
+    scp.to = [next[0], next[1]];
+    scp.start = performance.now();
+    scp.moving = true;
+    t = 0;
+  }
+
+  // Handle multiple steps in a single frame if needed
+  while (t >= 1 && scp.moving) {
+    scp.x = scp.to[0];
+    scp.y = scp.to[1];
+    console.log(`✅ [ARRIVE] SCP reached (${scp.x}, ${scp.y})`);
+
+    // Skip duplicates again
+    while (scp.path.length > 0 && scp.path[0][0] === scp.x && scp.path[0][1] === scp.y) {
+      console.log(`⚠️ [SKIP] Removing duplicate waypoint (${scp.path[0][0]}, ${scp.path[0][1]})`);
+      scp.path.shift();
+    }
+
+    if (scp.path.length > 0) {
+      const next = scp.path.shift();
+      console.log(`👣 [CHAIN] SCP continues from (${scp.x}, ${scp.y}) → (${next[0]}, ${next[1]}) | Remaining path: ${scp.path.length}`);
+
+      scp.from = [scp.x, scp.y];
+      scp.to = [next[0], next[1]];
+      scp.start = performance.now();
+      t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
+    } else {
+      scp.moving = false;
+      break;
+    }
+  }
+
+  if (scp.moving) {
+    const ax = THREE.MathUtils.lerp(scp.from[0], scp.to[0], Math.min(1, t));
+    const ay = THREE.MathUtils.lerp(scp.from[1], scp.to[1], Math.min(1, t));
+    const pos = cellToWorld(ax, ay);
+    scpMesh.position.x = pos.x;
+    scpMesh.position.z = pos.z;
+
+    console.log(`➡️ [MOVE] Interpolating between (${scp.from[0]}, ${scp.from[1]}) → (${scp.to[0]}, ${scp.to[1]}) | t=${t.toFixed(2)}`);
+  }
+
+  if (player.x === scp.x && player.y === scp.y) {
+    console.log("💀 SCP caught the player!");
+    endGame(false);
+  }
+}
+
+
 
 
       function recalcSCPPath() {
