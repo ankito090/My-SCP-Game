@@ -173,6 +173,8 @@
     </section>
   </div>
 
+  <audio id="scpSound" src="WhatsApp Audio 2025-08-20 at 16.22.33_fb9db0eb.mp3" loop></audio>
+
   <!-- Three.js -->
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
 
@@ -205,8 +207,19 @@
       const plNotice = document.getElementById('pl-notice');
 
       // Audio placeholders (replace with real URLs/base64 as needed)
-      const chaseAudio = new Audio(); chaseAudio.loop = true; chaseAudio.volume = 0;
-      const winAudio = new Audio(); const lossAudio = new Audio();
+      // Audio placeholders (replace with real URLs/base64 as needed)
+      // Try to use the <audio id="scpSound"> if it exists, otherwise fall back to a new Audio()
+      let chaseAudio = document.getElementById('scpSound');
+      if (!chaseAudio) {
+        // Audio element not yet in DOM — create a fallback Audio object so script doesn't crash
+        chaseAudio = new Audio();
+        chaseAudio.loop = true;
+      }
+      chaseAudio.volume = 0;
+
+      const winAudio = new Audio();
+      const lossAudio = new Audio();
+
 
       // Maze generation (recursive backtracker)
       const DIRS = [[0, -1, 'N'], [1, 0, 'E'], [0, 1, 'S'], [-1, 0, 'W']];
@@ -460,23 +473,38 @@
 
       // SCP movement using its path list (smooth)
       function updateSCP() {
-        // billboard facing player
-        scpMesh.lookAt(new THREE.Vector3(camera.position.x, scpMesh.position.y, camera.position.z));
-
         if (!(scp.path && scp.path.length)) return;
+
         if (!scp.moving) {
           const next = scp.path.shift();
           if (!next) return;
-          scp.from = [scp.x, scp.y]; scp.to = [next[0], next[1]]; scp.start = performance.now(); scp.moving = true;
+          scp.from = [scp.x, scp.y];
+          scp.to = [next[0], next[1]];
+          scp.start = performance.now();
+          scp.moving = true;
         }
+
         const t = (performance.now() - scp.start) / CONFIG.SCP_STEP_MS;
-        if (t >= 1) { scp.x = scp.to[0]; scp.y = scp.to[1]; scp.moving = false; }
+        if (t >= 1) {
+          scp.x = scp.to[0];
+          scp.y = scp.to[1];
+          scp.moving = false;
+        }
+
         const ax = THREE.MathUtils.lerp(scp.from[0], scp.to[0], Math.min(1, t));
         const ay = THREE.MathUtils.lerp(scp.from[1], scp.to[1], Math.min(1, t));
-        const pos = cellToWorld(ax, ay); scpMesh.position.x = pos.x; scpMesh.position.z = pos.z;
+        const pos = cellToWorld(ax, ay);
+        scpMesh.position.x = pos.x;
+        scpMesh.position.z = pos.z;
 
-        // check catch (simple cell overlap)
-        if (player.x === scp.x && player.y === scp.y) endGame(false);
+        // check collision
+        if (player.x === scp.x && player.y === scp.y) {
+          endGame(false);
+        }
+      }
+
+      function recalcSCPPath() {
+        scp.path = bfs([scp.x, scp.y], [player.x, player.y]);
       }
 
       // recompute path periodically
@@ -552,7 +580,12 @@
         statusEl.textContent = 'RUN';
         overlay.style.display = 'none'; menu.style.display = 'none'; stage.style.display = 'block';
         state = 'run'; running = true;
-        try { chaseAudio.play(); } catch (e) { }
+        try {
+          chaseAudio.currentTime = 0;   // rewind to start
+          chaseAudio.play().catch(() => {
+            // If autoplay blocked, just ignore — it will start once the browser allows
+          });
+        } catch (e) { }
         startPathTimer();
         animate();
       }
