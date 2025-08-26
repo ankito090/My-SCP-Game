@@ -185,7 +185,7 @@
         GRID_W: 11, GRID_H: 9, CELL: 3.2, WALL_H: 2.8,
         PLAYER_STEP_MS: 220, SCP_STEP_MS: 260, PATH_RECALC_MS: 350,
         MAX_HEAR_DIST: 18,
-        PICTURE_SRC: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Hitler_portrait_crop.jpg/960px-Hitler_portrait_crop.jpg',
+        PICTURE_SRC: 'https://raw.githubusercontent.com/ankito090/My-SCP-Game/main/gaigond.jpg',
         BUTTON_LABEL: 'Press it'
       };
 
@@ -405,19 +405,24 @@
         scpMesh.add(scpPlane);
 
         // load texture safely
+        // load texture safely
         new THREE.TextureLoader().load(
           CONFIG.PICTURE_SRC,
           (texture) => {
             texture.colorSpace = THREE.SRGBColorSpace; // ensures correct brightness
+            texture.wrapS = THREE.RepeatWrapping;      // allow horizontal flip
+            texture.repeat.x = -1;                     // flip horizontally
+          
             scpPlane.material.map = texture;
             scpPlane.material.needsUpdate = true;
           },
           undefined,
           (err) => {
             console.warn('SCP texture failed to load:', CONFIG.PICTURE_SRC, err);
-            scpPlane.material.color.set(0xff0000); // fallback = red, not invisible white
+            scpPlane.material.color.set(0xff0000); // fallback = red
           }
         );
+
 
         // --- TEMPORARY DEBUG LABEL ---
         const labelCanvas = document.createElement('canvas');
