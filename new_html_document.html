@@ -171,6 +171,21 @@
         </div>
       </div>
     </section>
+
+    <!-- Pause Hint -->
+    <div id="pauseHint"
+      style="position: absolute; top: 10px; right: 10px; color: white; font-family: monospace; font-size: 14px;">
+      Press P to Pause
+    </div>
+    <!-- Pause Menu -->
+    <div id="pauseMenu" style="display:none; position: absolute; top: 50%; left: 50%; 
+    transform: translate(-50%, -50%); background: silver; padding: 20px; 
+    border-radius: 10px; text-align: center; color: rgb(0, 0, 0); font-family: monospace; z-index: 1000;">
+      <h2>Paused</h2>
+      <button id="continueBtn" class="btn">Continue</button>
+      <button id="mainMenuBtn" class="btn">Main Menu</button>
+    </div>
+
   </div>
 
   <audio id="scpSound" src="gaigond_slang_1.mp3" loop></audio>
@@ -253,6 +268,7 @@
       let walls = [], floorMesh = null, scpMesh = null, goalMesh = null;
       let GRID_W, GRID_H, grid, C;
       let running = false, state = 'menu', mazeCount = 0, pathTimer = null;
+      let paused = false;
 
       const player = { x: 0, y: 0, moving: false, from: [0, 0], to: [0, 0], start: 0, yaw: 0 };
       const scp = { x: 0, y: 0, moving: false, from: [0, 0], to: [0, 0], start: 0, path: [] };
@@ -262,6 +278,20 @@
       const keys = { KeyW: 0, KeyA: 0, KeyS: 0, KeyD: 0, KeyE: 0 };
       window.addEventListener('keydown', e => { if (keys[e.code] !== undefined) { keys[e.code] = 1; e.preventDefault(); } });
       window.addEventListener('keyup', e => { if (keys[e.code] !== undefined) { keys[e.code] = 0; e.preventDefault(); } });
+      // ESC to pause/resume
+      window.addEventListener('keydown', (e) => {
+        if (e.code !== 'KeyP') return;
+        e.preventDefault();
+
+        if (state === 'run') {
+          // release mouse so the pause UI can be clicked
+          if (document.pointerLockElement) document.exitPointerLock();
+          pauseGame();      // <- from Step 3
+        } else if (state === 'paused') {
+          resumeGame();     // <- from Step 3
+        }
+      });
+
 
       controls.addEventListener('click', e => {
         const dir = e.target.getAttribute('data-dir'); if (!dir || state !== 'run') return;
@@ -800,6 +830,13 @@
       function animate() {
         if (!running) return;
         requestAnimationFrame(animate);
+
+        // When not in the running state, render a static frame but skip updates.
+        if (state !== 'run') {
+          renderer.render(scene, camera);
+          return;
+        }
+
         handleKeyboardInput();
         updatePlayer();
         updateSCP();
@@ -807,6 +844,7 @@
         updateButtonLabel();
         renderer.render(scene, camera);
       }
+
 
       function updateButtonLabel() {
         if (state !== 'run') { buttonLabel.style.display = 'none'; return; }
@@ -884,6 +922,24 @@
         return null; // no path
       }
 
+      function pauseGame() {
+        paused = true;
+        state = 'paused'; // <-- use 'paused' (matches the ESC handler)
+        document.getElementById("pauseMenu").style.display = "block";
+
+        // optionally stop audio so pause feels complete
+        try { chaseAudio.pause(); } catch (e) { }
+      }
+
+      function resumeGame() {
+        paused = false;
+        state = 'run';
+        document.getElementById("pauseMenu").style.display = "none";
+
+        // don't force pointer lock here (browser may block); player can click to re-lock
+        try { chaseAudio.play().catch(() => { }); } catch (e) { }
+      }
+
 
       // --- new game / setup ---
       function newGame() {
@@ -957,10 +1013,28 @@
         state = 'menu'; running = false; try { chaseAudio.pause(); } catch (e) { }
       });
 
+      // Pause menu button handlers (inside IIFE so resumeGame(), menu, stage, overlay are in-scope)
+      document.getElementById("continueBtn").addEventListener("click", () => {
+        resumeGame();
+      });
+
+      document.getElementById("mainMenuBtn").addEventListener("click", () => {
+        paused = false;
+        state = 'menu';
+        document.getElementById("pauseMenu").style.display = "none";
+        overlay.style.display = 'none';
+        stage.style.display = 'none';
+        menu.style.display = 'grid';
+        running = false;
+        try { chaseAudio.pause(); } catch (e) { }
+      });
+
+
       // mobile control buttons
       controls.addEventListener('touchstart', (ev) => { ev.preventDefault(); });
       controls.addEventListener('click', (ev) => { /* handled above */ });
     })();
+
   </script>
 </body>
 
