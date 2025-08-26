@@ -182,8 +182,8 @@
     (() => {
       // ---------- CONFIG ----------
       const CONFIG = {
-        GRID_W: 11, GRID_H: 9, CELL: 3.2, WALL_H: 2.8,
-        PLAYER_STEP_MS: 220, SCP_STEP_MS: 260, PATH_RECALC_MS: 350,
+        GRID_W: 11, GRID_H: 9, CELL: 3.4, WALL_H: 2.8,
+        PLAYER_STEP_MS: 350, SCP_STEP_MS: 420, PATH_RECALC_MS: 500,
         MAX_HEAR_DIST: 6,
         PICTURE_SRC: 'https://raw.githubusercontent.com/ankito090/My-SCP-Game/main/gaigond.jpg',
         BUTTON_LABEL: 'Press it'
@@ -709,7 +709,7 @@
         }
 
         resultTitle.textContent = win ? 'You Escaped!' : 'You Were Caught';
-        resultText.textContent = win ? 'You pressed the override. Freedom.' : 'The picture caught you.';
+        resultText.textContent = win ? 'You stop Gaigond from further abusing you!' : 'Gaigond caught you and abused you to dead.';
         overlay.style.display = 'grid';
         statusEl.textContent = win ? 'WIN' : 'LOSS';
       }
@@ -743,7 +743,7 @@
         }
 
         // Animation settings
-        const duration = 800; // 1s
+        const duration = 500; // 1s
         const start = performance.now();
 
         function easeInOutCubic(t) {
