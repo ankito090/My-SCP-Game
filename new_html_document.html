@@ -184,7 +184,7 @@
       const CONFIG = {
         GRID_W: 11, GRID_H: 9, CELL: 3.2, WALL_H: 2.8,
         PLAYER_STEP_MS: 220, SCP_STEP_MS: 260, PATH_RECALC_MS: 350,
-        MAX_HEAR_DIST: 18,
+        MAX_HEAR_DIST: 6,
         PICTURE_SRC: 'https://raw.githubusercontent.com/ankito090/My-SCP-Game/main/gaigond.jpg',
         BUTTON_LABEL: 'Press it'
       };
@@ -412,7 +412,7 @@
             texture.colorSpace = THREE.SRGBColorSpace; // ensures correct brightness
             texture.wrapS = THREE.RepeatWrapping;      // allow horizontal flip
             texture.repeat.x = -1;                     // flip horizontally
-          
+
             scpPlane.material.map = texture;
             scpPlane.material.needsUpdate = true;
           },
@@ -678,11 +678,22 @@
       }
 
       function updateChaseAudio() {
-        // simple distance falloff
-        const d = Math.abs(player.x - scp.x) + Math.abs(player.y - scp.y);
-        const vol = 1 - Math.min(d, CONFIG.MAX_HEAR_DIST) / CONFIG.MAX_HEAR_DIST;
+        const dx = player.x - scp.x;
+        const dy = player.y - scp.y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+
+        if (d >= CONFIG.MAX_HEAR_DIST) {
+          chaseAudio.volume = 0; // completely silent beyond max distance
+          return;
+        }
+
+        const normDist = d / CONFIG.MAX_HEAR_DIST;
+        const vol = Math.exp(-4 * normDist);
         chaseAudio.volume = Math.max(0, Math.min(1, vol));
       }
+
+
+
 
       function tryUse() {
         if (player.x === goal.x && player.y === goal.y) endGame(true);
