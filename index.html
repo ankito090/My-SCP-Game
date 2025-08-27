@@ -402,8 +402,8 @@
         let dragging = false, lastX = 0;
         document.addEventListener('mousemove', (e) => {
           if (state !== 'run') return;
-          if (document.pointerLockElement === renderer.domElement) { player.yaw -= e.movementX * 0.0025; }
-          else if (dragging) { const dx = e.clientX - lastX; lastX = e.clientX; player.yaw -= dx * 0.0025; }
+          if (document.pointerLockElement === renderer.domElement) { player.yaw -= e.movementX * 0.0015; }
+          else if (dragging) { const dx = e.clientX - lastX; lastX = e.clientX; player.yaw -= dx * 0.0015; }
         });
         renderer.domElement.addEventListener('mousedown', (e) => { if (state === 'run') { dragging = true; lastX = e.clientX; } });
         document.addEventListener('mouseup', () => { dragging = false; });
