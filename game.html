@@ -202,7 +202,7 @@
 
   </div>
 
-  <audio id="scpSound" src="gaigond_slang_1.mp3" loop></audio>
+  <audio id="scpSound" src="chase-audio.mp3" loop></audio>
 
   <!-- Three.js -->
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
@@ -246,8 +246,10 @@
       }
       chaseAudio.volume = 0;
 
-      const winAudio = new Audio();
-      const lossAudio = new Audio();
+      const winAudio = new Audio("win-audio.mp3");
+      const lossAudio = new Audio("loss-audio.mp3");
+      winAudio.volume = 0.5;   // a bit softer
+      lossAudio.volume = 0.7; 
 
 
       // Maze generation (recursive backtracker)
@@ -751,21 +753,41 @@
       }
 
       function endGame(win) {
-        useBtn.style.display = 'none';
-        useBtn.classList.remove('emergency');
-        state = 'over'; running = false;
-        try { chaseAudio.pause(); } catch (e) { }
+  useBtn.style.display = 'none';
+  useBtn.classList.remove('emergency');
+  state = 'over'; 
+  running = false;
 
-        // 🔑 Release the mouse so hover/click works
-        if (document.exitPointerLock) {
-          document.exitPointerLock();
-        }
+  try { chaseAudio.pause(); } catch (e) {}
 
-        resultTitle.textContent = win ? 'You Escaped!' : 'You Were Caught';
-        resultText.textContent = win ? 'You stop Gaigond from further abusing you!' : 'Gaigond caught you and abused you to dead.';
-        overlay.style.display = 'grid';
-        statusEl.textContent = win ? 'WIN' : 'LOSS';
-      }
+  // stop any existing win/loss audio before replaying
+  try {
+    winAudio.pause();
+    winAudio.currentTime = 0;
+    lossAudio.pause();
+    lossAudio.currentTime = 0;
+  } catch (e) {}
+
+  // play win or loss sound
+  if (win) {
+    winAudio.play().catch(() => {});
+  } else {
+    lossAudio.play().catch(() => {});
+  }
+
+  // 🔑 Release the mouse so hover/click works
+  if (document.exitPointerLock) {
+    document.exitPointerLock();
+  }
+
+  resultTitle.textContent = win ? 'You Won!' : 'You Were Caught';
+  resultText.textContent = win ? 
+    'You stop Gaigond from abusing you any further!' : 
+    'Gaigond caught you and abused you to dead.';
+  overlay.style.display = 'grid';
+  statusEl.textContent = win ? 'WIN' : 'LOSS';
+}
+
 
       function triggerJumpscare() {
         if (window.__jumpScareActive) return;
