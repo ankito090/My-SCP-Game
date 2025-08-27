@@ -21,19 +21,26 @@
       overflow: hidden
     }
 
+    #menu,
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 30;
+    }
+
     #menu {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  z-index: 30;
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 30;
 
-  /* New background image */
-  background: url("main-menu-bg.jpg") no-repeat center center;
-  background-size: cover;
-}
-
-
+      /* New background image */
+      background: url("main-menu-bg.jpg") no-repeat center center;
+      background-size: cover;
+    }
     .menu-inner {
       background: rgba(255, 255, 255, 0.85);
       padding: 24px;
@@ -232,7 +239,7 @@
     (() => {
       // ---------- CONFIG ----------
       const CONFIG = {
-        GRID_W: 11, GRID_H: 9, CELL: 3.4, WALL_H: 2.8,
+        GRID_W: 11, GRID_H:11, CELL: 3.4, WALL_H: 2.8,
         PLAYER_STEP_MS: 400, SCP_STEP_MS: 490, PATH_RECALC_MS: 590,
         MAX_HEAR_DIST: 6,
         PICTURE_SRC: 'https://raw.githubusercontent.com/ankito090/My-SCP-Game/main/gaigond.jpg',
