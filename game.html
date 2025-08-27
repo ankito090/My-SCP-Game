@@ -153,8 +153,6 @@
     <section id="menu">
       <div class="menu-inner">
         <div class="title">Stop The Abusive Gaigond</div>
-        <div style="color:#334155;margin-bottom:12px">Daytime 3D maze — find the button before the picture finds you.
-        </div>
         <button class="btn" id="startBtn">Start</button>
       </div>
     </section>
@@ -340,38 +338,42 @@
 
       function initThree() {
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x9ecffb); // daytime sky blue
-
+        scene.background = new THREE.Color("#11111a"); // dark but not pitch black
+            
         // camera
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 1.6, 0);
-
+            
         // renderer
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.getElementById('stage').appendChild(renderer.domElement);
-
-        // lighting: sunlight + hemisphere for brightness
-        const hemi = new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 0.9);
+            
+        // ambient sky/ground glow
+        const hemi = new THREE.HemisphereLight(0x445566, 0x222222, 0.8); 
         scene.add(hemi);
-        const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-        sun.position.set(10, 20, 10);
-        scene.add(sun);
-
+            
+        // moonlight (directional)
+        const moon = new THREE.DirectionalLight(0xaaccff, 1.2);
+        moon.position.set(15, 30, 15);
+        moon.castShadow = true;
+        scene.add(moon);
+            
         window.addEventListener('resize', () => {
-          camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+          camera.aspect = window.innerWidth / window.innerHeight; 
+          camera.updateProjectionMatrix();
           renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // pointer lock (safe): may be blocked in sandbox; we fall back to drag-look
+        })
+      
+        // pointer lock (safe): may be blocked in sandbox; fallback to drag-look
         renderer.domElement.addEventListener('click', () => {
           if (state === 'run' && document.pointerLockElement !== renderer.domElement) {
             try { renderer.domElement.requestPointerLock?.(); }
             catch (err) { plNotice.style.display = 'block'; plNotice.textContent = 'Pointer lock blocked. Use drag-to-look or open in a new tab with allow-pointer-lock.'; }
           }
         });
-
+      
         // mouse look (pointer lock) + drag fallback
         let dragging = false, lastX = 0;
         document.addEventListener('mousemove', (e) => {
@@ -381,117 +383,120 @@
         });
         renderer.domElement.addEventListener('mousedown', (e) => { if (state === 'run') { dragging = true; lastX = e.clientX; } });
         document.addEventListener('mouseup', () => { dragging = false; });
-
+      
         // touch look (mobile)
         let lastTouchX = 0;
         renderer.domElement.addEventListener('touchstart', (e) => { if (state === 'run' && e.touches.length === 1) { lastTouchX = e.touches[0].clientX; } });
-        renderer.domElement.addEventListener('touchmove', (e) => { if (state !== 'run') return; if (e.touches.length === 1) { const dx = e.touches[0].clientX - lastTouchX; lastTouchX = e.touches[0].clientX; player.yaw -= dx * 0.005; } }, { passive: false });
+        renderer.domElement.addEventListener('touchmove', (e) => { 
+          if (state !== 'run') return; 
+          if (e.touches.length === 1) { 
+            const dx = e.touches[0].clientX - lastTouchX; 
+            lastTouchX = e.touches[0].clientX; 
+            player.yaw -= dx * 0.005; 
+          } 
+        }, { passive: false });
       }
+
 
       // build maze meshes visible in daytime
       function buildMaze() {
-        // clear
-        for (const m of walls) scene.remove(m); walls = [];
-        if (floorMesh) scene.remove(floorMesh);
-        if (scpMesh) scene.remove(scpMesh);
-        if (goalMesh) scene.remove(goalMesh);
+  // clear
+  for (const m of walls) scene.remove(m); walls = [];
+  if (floorMesh) scene.remove(floorMesh);
+  if (scpMesh) scene.remove(scpMesh);
+  if (goalMesh) scene.remove(goalMesh);
 
-        C = CONFIG.CELL;
-        const wallH = CONFIG.WALL_H;
+  C = CONFIG.CELL;
+  const wallH = CONFIG.WALL_H;
 
-        // floor: slightly mossy
-        const floorGeo = new THREE.PlaneGeometry(GRID_W * C, GRID_H * C);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0xe6ede6 });
-        floorMesh = new THREE.Mesh(floorGeo, floorMat);
-        floorMesh.rotation.x = -Math.PI / 2;
-        floorMesh.position.set(GRID_W * C / 2 - C / 2, 0, GRID_H * C / 2 - C / 2);
-        scene.add(floorMesh);
+  // floor: lighter slate gray
+  const floorGeo = new THREE.PlaneGeometry(GRID_W * C, GRID_H * C);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 });
+  floorMesh = new THREE.Mesh(floorGeo, floorMat);
+  floorMesh.rotation.x = -Math.PI / 2;
+  floorMesh.position.set(GRID_W * C / 2 - C / 2, 0, GRID_H * C / 2 - C / 2);
+  scene.add(floorMesh);
 
-        // walls (thin extruded boxes)
-        const wallColor = 0x9b4b3b; // brick-like tint
-        const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.9 });
-        for (let y = 0; y < GRID_H; y++) {
-          for (let x = 0; x < GRID_W; x++) {
-            const cell = grid[y][x];
-            const cx = x * C, cz = y * C;
-            // North
-            if (cell.N) { const g = new THREE.BoxGeometry(C, wallH, 0.12); const m = new THREE.Mesh(g, wallMat); m.position.set(cx, wallH / 2, cz - C / 2); scene.add(m); walls.push(m); }
-            // South
-            if (cell.S) { const g = new THREE.BoxGeometry(C, wallH, 0.12); const m = new THREE.Mesh(g, wallMat); m.position.set(cx, wallH / 2, cz + C / 2); scene.add(m); walls.push(m); }
-            // West
-            if (cell.W) { const g = new THREE.BoxGeometry(0.12, wallH, C); const m = new THREE.Mesh(g, wallMat); m.position.set(cx - C / 2, wallH / 2, cz); scene.add(m); walls.push(m); }
-            // East
-            if (cell.E) { const g = new THREE.BoxGeometry(0.12, wallH, C); const m = new THREE.Mesh(g, wallMat); m.position.set(cx + C / 2, wallH / 2, cz); scene.add(m); walls.push(m); }
-          }
-        }
+  // walls: lighter bluish gray
+  const wallColor = 0x3b4b5f;
+  const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.85 });
+  for (let y = 0; y < GRID_H; y++) {
+    for (let x = 0; x < GRID_W; x++) {
+      const cell = grid[y][x];
+      const cx = x * C, cz = y * C;
+      if (cell.N) { const g = new THREE.BoxGeometry(C, wallH, 0.12); const m = new THREE.Mesh(g, wallMat); m.position.set(cx, wallH / 2, cz - C / 2); scene.add(m); walls.push(m); }
+      if (cell.S) { const g = new THREE.BoxGeometry(C, wallH, 0.12); const m = new THREE.Mesh(g, wallMat); m.position.set(cx, wallH / 2, cz + C / 2); scene.add(m); walls.push(m); }
+      if (cell.W) { const g = new THREE.BoxGeometry(0.12, wallH, C); const m = new THREE.Mesh(g, wallMat); m.position.set(cx - C / 2, wallH / 2, cz); scene.add(m); walls.push(m); }
+      if (cell.E) { const g = new THREE.BoxGeometry(0.12, wallH, C); const m = new THREE.Mesh(g, wallMat); m.position.set(cx + C / 2, wallH / 2, cz); scene.add(m); walls.push(m); }
+    }
+  }
 
-        // Goal pillar + glowing button
-        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 16), new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.8 }));
-        const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.12, 16), new THREE.MeshStandardMaterial({ color: 0x3ee7b4, emissive: 0x1f9e89, emissiveIntensity: 0.6 }));
-        pillar.add(btn); btn.position.y = 0.36;
-        goalMesh = new THREE.Group(); goalMesh.add(pillar); scene.add(goalMesh);
+  // Goal pillar + glowing cyan button
+  const pillar = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.35, 0.35, 0.6, 16),
+    new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.8 })
+  );
+  const btn = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22, 0.22, 0.12, 16),
+    new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00cccc, emissiveIntensity: 1.5 })
+  );
+  pillar.add(btn); btn.position.y = 0.36;
+  goalMesh = new THREE.Group(); goalMesh.add(pillar); scene.add(goalMesh);
 
-        // SCP billboard
-        scpMesh = new THREE.Group();
-        scpMesh.name = 'scpMesh';
+  // SCP billboard (same as before)
+  scpMesh = new THREE.Group();
+  scpMesh.name = 'scpMesh';
 
-        // fallback white material
-        const scpMaterial = new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          side: THREE.DoubleSide
-        });
+  const scpMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    side: THREE.DoubleSide
+  });
 
-        // plane for SCP image
-        const scpPlane = new THREE.Mesh(
-          new THREE.PlaneGeometry(1.2, 1.6),
-          scpMaterial
-        );
-        scpPlane.position.set(0, 0.8, 0);
-        scpPlane.rotation.y = Math.PI;
-        scpMesh.add(scpPlane);
+  const scpPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.6), scpMaterial);
+  scpPlane.position.set(0, 0.8, 0);
+  scpPlane.rotation.y = Math.PI;
+  scpMesh.add(scpPlane);
 
-        // load texture safely
-        // load texture safely
-        new THREE.TextureLoader().load(
-          CONFIG.PICTURE_SRC,
-          (texture) => {
-            texture.colorSpace = THREE.SRGBColorSpace; // ensures correct brightness
-            texture.wrapS = THREE.RepeatWrapping;      // allow horizontal flip
-            texture.repeat.x = -1;                     // flip horizontally
+  new THREE.TextureLoader().load(
+    CONFIG.PICTURE_SRC,
+    (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.repeat.x = -1;
+      scpPlane.material.map = texture;
+      scpPlane.material.needsUpdate = true;
+    },
+    undefined,
+    (err) => {
+      console.warn('SCP texture failed to load:', CONFIG.PICTURE_SRC, err);
+      scpPlane.material.color.set(0xff0000);
+    }
+  );
 
-            scpPlane.material.map = texture;
-            scpPlane.material.needsUpdate = true;
-          },
-          undefined,
-          (err) => {
-            console.warn('SCP texture failed to load:', CONFIG.PICTURE_SRC, err);
-            scpPlane.material.color.set(0xff0000); // fallback = red
-          }
-        );
+  // Debug label
+  const labelCanvas = document.createElement('canvas');
+  labelCanvas.width = 256;
+  labelCanvas.height = 64;
+  const ctx = labelCanvas.getContext('2d');
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, labelCanvas.width, labelCanvas.height);
+  ctx.fillStyle = '#ff4444';
+  ctx.font = 'bold 32px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText("He's Here", labelCanvas.width / 2, labelCanvas.height / 2);
+
+  const labelTex = new THREE.CanvasTexture(labelCanvas);
+  const labelMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true });
+  const label = new THREE.Sprite(labelMat);
+  label.scale.set(3, 1, 1);
+  label.position.set(0, 2.5, 0);
+  scpMesh.add(label);
+
+  scene.add(scpMesh);
+}
 
 
-        // --- TEMPORARY DEBUG LABEL ---
-        const labelCanvas = document.createElement('canvas');
-        labelCanvas.width = 256;
-        labelCanvas.height = 64;
-        const ctx = labelCanvas.getContext('2d');
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(0, 0, labelCanvas.width, labelCanvas.height);
-        ctx.fillStyle = '#ff4444';
-        ctx.font = 'bold 32px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText("He's Here", labelCanvas.width / 2, labelCanvas.height / 2);
-
-        const labelTex = new THREE.CanvasTexture(labelCanvas);
-        const labelMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true });
-        const label = new THREE.Sprite(labelMat);
-        label.scale.set(3, 1, 1);
-        label.position.set(0, 2.5, 0);
-        scpMesh.add(label);
-
-        scene.add(scpMesh);
-      }
 
 
       // convert cell->world center
