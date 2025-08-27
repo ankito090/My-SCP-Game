@@ -73,16 +73,18 @@
 
     #useBtn {
       position: absolute;
-      left: 12px;
-      bottom: 16px;
-      z-index: 25;
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 0;
+      left: 50%;
+      bottom: 50%; /* a bit above bottom edge */
+      transform: translateX(-50%);
+      z-index: 999;
+      padding: 16px 24px;
+      font-size: 14px;
+      border-radius: 10px;
       background: #0f172a;
       color: #fff;
-      display: none
+      display: none;
     }
+
 
     .controls {
       position: absolute;
@@ -129,6 +131,20 @@
     canvas {
       display: block
     }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+    }
+
+    #useBtn.emergency {
+      animation: pulse 0.8s infinite;
+      font-weight: 900;
+      text-transform: uppercase;
+      border: 3px solid red;
+      box-shadow: 0 0 15px red;
+    }
+
   </style>
 </head>
 
@@ -136,7 +152,7 @@
   <div id="app">
     <section id="menu">
       <div class="menu-inner">
-        <div class="title">Escape the SCP</div>
+        <div class="title">Stop The Abusive Gaigond</div>
         <div style="color:#334155;margin-bottom:12px">Daytime 3D maze — find the button before the picture finds you.
         </div>
         <button class="btn" id="startBtn">Start</button>
@@ -198,7 +214,7 @@
       // ---------- CONFIG ----------
       const CONFIG = {
         GRID_W: 11, GRID_H: 9, CELL: 3.4, WALL_H: 2.8,
-        PLAYER_STEP_MS: 350, SCP_STEP_MS: 420, PATH_RECALC_MS: 500,
+        PLAYER_STEP_MS: 400, SCP_STEP_MS: 490, PATH_RECALC_MS: 590,
         MAX_HEAR_DIST: 6,
         PICTURE_SRC: 'https://raw.githubusercontent.com/ankito090/My-SCP-Game/main/gaigond.jpg',
         BUTTON_LABEL: 'Press it'
@@ -730,6 +746,8 @@
       }
 
       function endGame(win) {
+        useBtn.style.display = 'none';
+        useBtn.classList.remove('emergency');
         state = 'over'; running = false;
         try { chaseAudio.pause(); } catch (e) { }
 
@@ -856,7 +874,13 @@
           buttonLabel.style.left = Math.round(sx - buttonLabel.offsetWidth / 2) + 'px';
           buttonLabel.style.top = Math.round(sy - 30) + 'px';
         }
-        useBtn.style.display = (player.x === goal.x && player.y === goal.y) ? 'block' : 'none';
+        if (player.x === goal.x && player.y === goal.y) {
+          useBtn.style.display = 'block';
+          useBtn.classList.add('emergency');
+        } else {
+          useBtn.style.display = 'none';
+          useBtn.classList.remove('emergency');
+        }
       }
 
       // --- Fixed A* for cell objects with walls ---
