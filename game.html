@@ -21,14 +21,18 @@
       overflow: hidden
     }
 
-    #menu,
-    #overlay {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      z-index: 30
-    }
+    #menu {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 30;
+
+  /* New background image */
+  background: url("main-menu-bg.jpg") no-repeat center center;
+  background-size: cover;
+}
+
 
     .menu-inner {
       background: rgba(255, 255, 255, 0.85);
@@ -182,17 +186,6 @@
     <section id="stage">
       <div id="hud">Maze <strong id="mazeNum">#1</strong> • Status: <strong id="status">READY</strong></div>
       <button id="useBtn">PRESS (E)</button>
-      <div class="controls" id="controls">
-        <button class="empty" style="visibility:hidden"></button>
-        <button data-dir="up">▲</button>
-        <button class="empty" style="visibility:hidden"></button>
-        <button data-dir="left">◀</button>
-        <button class="empty" style="visibility:hidden"></button>
-        <button data-dir="right">▶</button>
-        <button class="empty" style="visibility:hidden"></button>
-        <button data-dir="down">▼</button>
-        <button class="empty" style="visibility:hidden"></button>
-      </div>
       <div id="buttonLabel"></div>
       <div id="pl-notice"></div>
     </section>
@@ -257,7 +250,6 @@
       const resultText = document.getElementById('resultText');
       const againBtn = document.getElementById('againBtn');
       const menuBtn = document.getElementById('menuBtn');
-      const controls = document.getElementById('controls');
       const useBtn = document.getElementById('useBtn');
       const buttonLabel = document.getElementById('buttonLabel');
       const plNotice = document.getElementById('pl-notice');
@@ -335,11 +327,6 @@
         }
       });
 
-
-      controls.addEventListener('click', e => {
-        const dir = e.target.getAttribute('data-dir'); if (!dir || state !== 'run') return;
-        attemptStep(dir);
-      });
       useBtn.addEventListener('click', () => { tryUse() });
 
       // --- WASD relative-to-look helpers ---
@@ -412,18 +399,6 @@
         });
         renderer.domElement.addEventListener('mousedown', (e) => { if (state === 'run') { dragging = true; lastX = e.clientX; } });
         document.addEventListener('mouseup', () => { dragging = false; });
-
-        // touch look (mobile)
-        let lastTouchX = 0;
-        renderer.domElement.addEventListener('touchstart', (e) => { if (state === 'run' && e.touches.length === 1) { lastTouchX = e.touches[0].clientX; } });
-        renderer.domElement.addEventListener('touchmove', (e) => {
-          if (state !== 'run') return;
-          if (e.touches.length === 1) {
-            const dx = e.touches[0].clientX - lastTouchX;
-            lastTouchX = e.touches[0].clientX;
-            player.yaw -= dx * 0.005;
-          }
-        }, { passive: false });
       }
 
 
@@ -472,7 +447,7 @@
         pillar.add(btn); btn.position.y = 0.36;
         goalMesh = new THREE.Group(); goalMesh.add(pillar); scene.add(goalMesh);
 
-        // SCP billboard (same as before)
+        // SCP billboard
         scpMesh = new THREE.Group();
         scpMesh.name = 'scpMesh';
 
@@ -501,28 +476,9 @@
             scpPlane.material.color.set(0xff0000);
           }
         );
-
-        // Debug label
-        const labelCanvas = document.createElement('canvas');
-        labelCanvas.width = 256;
-        labelCanvas.height = 64;
-        const ctx = labelCanvas.getContext('2d');
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(0, 0, labelCanvas.width, labelCanvas.height);
-        ctx.fillStyle = '#ff4444';
-        ctx.font = 'bold 32px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText("He's Here", labelCanvas.width / 2, labelCanvas.height / 2);
-
-        const labelTex = new THREE.CanvasTexture(labelCanvas);
-        const labelMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true });
-        const label = new THREE.Sprite(labelMat);
-        label.scale.set(3, 1, 1);
-        label.position.set(0, 2.5, 0);
-        scpMesh.add(label);
-
+        
         scene.add(scpMesh);
+
       }
 
 
@@ -1118,8 +1074,6 @@
 
 
       // mobile control buttons
-      controls.addEventListener('touchstart', (ev) => { ev.preventDefault(); });
-      controls.addEventListener('click', (ev) => { /* handled above */ });
     })();
 
   </script>
