@@ -74,7 +74,8 @@
     #useBtn {
       position: absolute;
       left: 50%;
-      bottom: 50%; /* a bit above bottom edge */
+      bottom: 50%;
+      /* a bit above bottom edge */
       transform: translateX(-50%);
       z-index: 999;
       padding: 16px 24px;
@@ -105,16 +106,6 @@
       font-weight: 800
     }
 
-    #buttonLabel {
-      position: absolute;
-      z-index: 26;
-      padding: 6px 10px;
-      border-radius: 8px;
-      background: rgba(255, 255, 255, .9);
-      display: none;
-      font-weight: 700
-    }
-
     #pl-notice {
       position: absolute;
       left: 50%;
@@ -133,8 +124,15 @@
     }
 
     @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.15); }
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.15);
+      }
     }
 
     #useBtn.emergency {
@@ -145,6 +143,30 @@
       box-shadow: 0 0 15px red;
     }
 
+    #introMsg {
+      position: absolute;
+      top: 15%;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 22px;
+      font-weight: bold;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 1s ease;
+      pointer-events: none;
+      /* prevent blocking input */
+    }
+
+    #introMsg.show {
+      opacity: 1;
+    }
+
+    .inline-icon {
+      height: 1em;
+      width: auto;
+      vertical-align: middle;
+    }
   </style>
 </head>
 
@@ -171,7 +193,7 @@
         <button data-dir="down">▼</button>
         <button class="empty" style="visibility:hidden"></button>
       </div>
-      <div id="buttonLabel">BUTTON</div>
+      <div id="buttonLabel"></div>
       <div id="pl-notice"></div>
     </section>
 
@@ -200,6 +222,12 @@
       <button id="mainMenuBtn" class="btn">Main Menu</button>
     </div>
 
+    <div id="introMsg">
+      Find and Press the
+      <img src="button.jpg" alt="button" class="inline-icon">
+      Before Gaigond catches you.
+    </div>
+
   </div>
 
   <audio id="scpSound" src="chase-audio.mp3" loop></audio>
@@ -215,7 +243,6 @@
         PLAYER_STEP_MS: 400, SCP_STEP_MS: 490, PATH_RECALC_MS: 590,
         MAX_HEAR_DIST: 6,
         PICTURE_SRC: 'https://raw.githubusercontent.com/ankito090/My-SCP-Game/main/gaigond.jpg',
-        BUTTON_LABEL: 'Press it'
       };
 
       // DOM
@@ -249,7 +276,7 @@
       const winAudio = new Audio("win-audio.mp3");
       const lossAudio = new Audio("loss-audio.mp3");
       winAudio.volume = 0.5;   // a bit softer
-      lossAudio.volume = 0.7; 
+      lossAudio.volume = 0.7;
 
 
       // Maze generation (recursive backtracker)
@@ -341,33 +368,33 @@
       function initThree() {
         scene = new THREE.Scene();
         scene.background = new THREE.Color("#11111a"); // dark but not pitch black
-            
+
         // camera
         camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 1.6, 0);
-            
+
         // renderer
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.getElementById('stage').appendChild(renderer.domElement);
-            
+
         // ambient sky/ground glow
-        const hemi = new THREE.HemisphereLight(0x445566, 0x222222, 0.8); 
+        const hemi = new THREE.HemisphereLight(0x445566, 0x222222, 0.8);
         scene.add(hemi);
-            
+
         // moonlight (directional)
         const moon = new THREE.DirectionalLight(0xaaccff, 1.2);
         moon.position.set(15, 30, 15);
         moon.castShadow = true;
         scene.add(moon);
-            
+
         window.addEventListener('resize', () => {
-          camera.aspect = window.innerWidth / window.innerHeight; 
+          camera.aspect = window.innerWidth / window.innerHeight;
           camera.updateProjectionMatrix();
           renderer.setSize(window.innerWidth, window.innerHeight);
         })
-      
+
         // pointer lock (safe): may be blocked in sandbox; fallback to drag-look
         renderer.domElement.addEventListener('click', () => {
           if (state === 'run' && document.pointerLockElement !== renderer.domElement) {
@@ -375,7 +402,7 @@
             catch (err) { plNotice.style.display = 'block'; plNotice.textContent = 'Pointer lock blocked. Use drag-to-look or open in a new tab with allow-pointer-lock.'; }
           }
         });
-      
+
         // mouse look (pointer lock) + drag fallback
         let dragging = false, lastX = 0;
         document.addEventListener('mousemove', (e) => {
@@ -385,118 +412,118 @@
         });
         renderer.domElement.addEventListener('mousedown', (e) => { if (state === 'run') { dragging = true; lastX = e.clientX; } });
         document.addEventListener('mouseup', () => { dragging = false; });
-      
+
         // touch look (mobile)
         let lastTouchX = 0;
         renderer.domElement.addEventListener('touchstart', (e) => { if (state === 'run' && e.touches.length === 1) { lastTouchX = e.touches[0].clientX; } });
-        renderer.domElement.addEventListener('touchmove', (e) => { 
-          if (state !== 'run') return; 
-          if (e.touches.length === 1) { 
-            const dx = e.touches[0].clientX - lastTouchX; 
-            lastTouchX = e.touches[0].clientX; 
-            player.yaw -= dx * 0.005; 
-          } 
+        renderer.domElement.addEventListener('touchmove', (e) => {
+          if (state !== 'run') return;
+          if (e.touches.length === 1) {
+            const dx = e.touches[0].clientX - lastTouchX;
+            lastTouchX = e.touches[0].clientX;
+            player.yaw -= dx * 0.005;
+          }
         }, { passive: false });
       }
 
 
       // build maze meshes visible in daytime
       function buildMaze() {
-  // clear
-  for (const m of walls) scene.remove(m); walls = [];
-  if (floorMesh) scene.remove(floorMesh);
-  if (scpMesh) scene.remove(scpMesh);
-  if (goalMesh) scene.remove(goalMesh);
+        // clear
+        for (const m of walls) scene.remove(m); walls = [];
+        if (floorMesh) scene.remove(floorMesh);
+        if (scpMesh) scene.remove(scpMesh);
+        if (goalMesh) scene.remove(goalMesh);
 
-  C = CONFIG.CELL;
-  const wallH = CONFIG.WALL_H;
+        C = CONFIG.CELL;
+        const wallH = CONFIG.WALL_H;
 
-  // floor: lighter slate gray
-  const floorGeo = new THREE.PlaneGeometry(GRID_W * C, GRID_H * C);
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 });
-  floorMesh = new THREE.Mesh(floorGeo, floorMat);
-  floorMesh.rotation.x = -Math.PI / 2;
-  floorMesh.position.set(GRID_W * C / 2 - C / 2, 0, GRID_H * C / 2 - C / 2);
-  scene.add(floorMesh);
+        // floor: lighter slate gray
+        const floorGeo = new THREE.PlaneGeometry(GRID_W * C, GRID_H * C);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 });
+        floorMesh = new THREE.Mesh(floorGeo, floorMat);
+        floorMesh.rotation.x = -Math.PI / 2;
+        floorMesh.position.set(GRID_W * C / 2 - C / 2, 0, GRID_H * C / 2 - C / 2);
+        scene.add(floorMesh);
 
-  // walls: lighter bluish gray
-  const wallColor = 0x3b4b5f;
-  const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.85 });
-  for (let y = 0; y < GRID_H; y++) {
-    for (let x = 0; x < GRID_W; x++) {
-      const cell = grid[y][x];
-      const cx = x * C, cz = y * C;
-      if (cell.N) { const g = new THREE.BoxGeometry(C, wallH, 0.12); const m = new THREE.Mesh(g, wallMat); m.position.set(cx, wallH / 2, cz - C / 2); scene.add(m); walls.push(m); }
-      if (cell.S) { const g = new THREE.BoxGeometry(C, wallH, 0.12); const m = new THREE.Mesh(g, wallMat); m.position.set(cx, wallH / 2, cz + C / 2); scene.add(m); walls.push(m); }
-      if (cell.W) { const g = new THREE.BoxGeometry(0.12, wallH, C); const m = new THREE.Mesh(g, wallMat); m.position.set(cx - C / 2, wallH / 2, cz); scene.add(m); walls.push(m); }
-      if (cell.E) { const g = new THREE.BoxGeometry(0.12, wallH, C); const m = new THREE.Mesh(g, wallMat); m.position.set(cx + C / 2, wallH / 2, cz); scene.add(m); walls.push(m); }
-    }
-  }
+        // walls: lighter bluish gray
+        const wallColor = 0x3b4b5f;
+        const wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.85 });
+        for (let y = 0; y < GRID_H; y++) {
+          for (let x = 0; x < GRID_W; x++) {
+            const cell = grid[y][x];
+            const cx = x * C, cz = y * C;
+            if (cell.N) { const g = new THREE.BoxGeometry(C, wallH, 0.12); const m = new THREE.Mesh(g, wallMat); m.position.set(cx, wallH / 2, cz - C / 2); scene.add(m); walls.push(m); }
+            if (cell.S) { const g = new THREE.BoxGeometry(C, wallH, 0.12); const m = new THREE.Mesh(g, wallMat); m.position.set(cx, wallH / 2, cz + C / 2); scene.add(m); walls.push(m); }
+            if (cell.W) { const g = new THREE.BoxGeometry(0.12, wallH, C); const m = new THREE.Mesh(g, wallMat); m.position.set(cx - C / 2, wallH / 2, cz); scene.add(m); walls.push(m); }
+            if (cell.E) { const g = new THREE.BoxGeometry(0.12, wallH, C); const m = new THREE.Mesh(g, wallMat); m.position.set(cx + C / 2, wallH / 2, cz); scene.add(m); walls.push(m); }
+          }
+        }
 
-  // Goal pillar + glowing cyan button
-  const pillar = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.35, 0.35, 0.6, 16),
-    new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.8 })
-  );
-  const btn = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.22, 0.12, 16),
-    new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00cccc, emissiveIntensity: 1.5 })
-  );
-  pillar.add(btn); btn.position.y = 0.36;
-  goalMesh = new THREE.Group(); goalMesh.add(pillar); scene.add(goalMesh);
+        // Goal pillar + glowing cyan button
+        const pillar = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.35, 0.35, 0.6, 16),
+          new THREE.MeshStandardMaterial({ color: 0x0f766e, roughness: 0.8 })
+        );
+        const btn = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.22, 0.22, 0.12, 16),
+          new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00cccc, emissiveIntensity: 1.5 })
+        );
+        pillar.add(btn); btn.position.y = 0.36;
+        goalMesh = new THREE.Group(); goalMesh.add(pillar); scene.add(goalMesh);
 
-  // SCP billboard (same as before)
-  scpMesh = new THREE.Group();
-  scpMesh.name = 'scpMesh';
+        // SCP billboard (same as before)
+        scpMesh = new THREE.Group();
+        scpMesh.name = 'scpMesh';
 
-  const scpMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    side: THREE.DoubleSide
-  });
+        const scpMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          side: THREE.DoubleSide
+        });
 
-  const scpPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.6), scpMaterial);
-  scpPlane.position.set(0, 0.8, 0);
-  scpPlane.rotation.y = Math.PI;
-  scpMesh.add(scpPlane);
+        const scpPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.6), scpMaterial);
+        scpPlane.position.set(0, 0.8, 0);
+        scpPlane.rotation.y = Math.PI;
+        scpMesh.add(scpPlane);
 
-  new THREE.TextureLoader().load(
-    CONFIG.PICTURE_SRC,
-    (texture) => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.repeat.x = -1;
-      scpPlane.material.map = texture;
-      scpPlane.material.needsUpdate = true;
-    },
-    undefined,
-    (err) => {
-      console.warn('SCP texture failed to load:', CONFIG.PICTURE_SRC, err);
-      scpPlane.material.color.set(0xff0000);
-    }
-  );
+        new THREE.TextureLoader().load(
+          CONFIG.PICTURE_SRC,
+          (texture) => {
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.repeat.x = -1;
+            scpPlane.material.map = texture;
+            scpPlane.material.needsUpdate = true;
+          },
+          undefined,
+          (err) => {
+            console.warn('SCP texture failed to load:', CONFIG.PICTURE_SRC, err);
+            scpPlane.material.color.set(0xff0000);
+          }
+        );
 
-  // Debug label
-  const labelCanvas = document.createElement('canvas');
-  labelCanvas.width = 256;
-  labelCanvas.height = 64;
-  const ctx = labelCanvas.getContext('2d');
-  ctx.fillStyle = 'rgba(0,0,0,0.7)';
-  ctx.fillRect(0, 0, labelCanvas.width, labelCanvas.height);
-  ctx.fillStyle = '#ff4444';
-  ctx.font = 'bold 32px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText("He's Here", labelCanvas.width / 2, labelCanvas.height / 2);
+        // Debug label
+        const labelCanvas = document.createElement('canvas');
+        labelCanvas.width = 256;
+        labelCanvas.height = 64;
+        const ctx = labelCanvas.getContext('2d');
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, labelCanvas.width, labelCanvas.height);
+        ctx.fillStyle = '#ff4444';
+        ctx.font = 'bold 32px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText("He's Here", labelCanvas.width / 2, labelCanvas.height / 2);
 
-  const labelTex = new THREE.CanvasTexture(labelCanvas);
-  const labelMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true });
-  const label = new THREE.Sprite(labelMat);
-  label.scale.set(3, 1, 1);
-  label.position.set(0, 2.5, 0);
-  scpMesh.add(label);
+        const labelTex = new THREE.CanvasTexture(labelCanvas);
+        const labelMat = new THREE.SpriteMaterial({ map: labelTex, transparent: true });
+        const label = new THREE.Sprite(labelMat);
+        label.scale.set(3, 1, 1);
+        label.position.set(0, 2.5, 0);
+        scpMesh.add(label);
 
-  scene.add(scpMesh);
-}
+        scene.add(scpMesh);
+      }
 
 
 
@@ -753,40 +780,48 @@
       }
 
       function endGame(win) {
-  useBtn.style.display = 'none';
-  useBtn.classList.remove('emergency');
-  state = 'over'; 
-  running = false;
+        useBtn.style.display = 'none';
+        useBtn.classList.remove('emergency');
+        state = 'over';
+        running = false;
 
-  try { chaseAudio.pause(); } catch (e) {}
+        try { chaseAudio.pause(); } catch (e) { }
 
-  // stop any existing win/loss audio before replaying
-  try {
-    winAudio.pause();
-    winAudio.currentTime = 0;
-    lossAudio.pause();
-    lossAudio.currentTime = 0;
-  } catch (e) {}
+        // stop any existing win/loss audio before replaying
+        try {
+          winAudio.pause();
+          winAudio.currentTime = 0;
+          lossAudio.pause();
+          lossAudio.currentTime = 0;
+        } catch (e) { }
 
-  // play win or loss sound
-  if (win) {
-    winAudio.play().catch(() => {});
-  } else {
-    lossAudio.play().catch(() => {});
-  }
+        // play win or loss sound
+        if (win) {
+          winAudio.play().catch(() => { });
+        } else {
+          lossAudio.play().catch(() => { });
+        }
 
-  // 🔑 Release the mouse so hover/click works
-  if (document.exitPointerLock) {
-    document.exitPointerLock();
-  }
+        // 🔑 Release the mouse so hover/click works
+        if (document.exitPointerLock) {
+          document.exitPointerLock();
+        }
 
-  resultTitle.textContent = win ? 'You Won!' : 'You Were Caught';
-  resultText.textContent = win ? 
-    'You stop Gaigond from abusing you any further!' : 
-    'Gaigond caught you and abused you to dead.';
-  overlay.style.display = 'grid';
-  statusEl.textContent = win ? 'WIN' : 'LOSS';
-}
+        resultTitle.textContent = win ? 'You Won!' : 'You Were Caught!';
+        resultText.textContent = win ?
+          'You stopped Gaigond from abusing you any further.' :
+          'Gaigond caught you and abused you to dead.';
+        overlay.style.display = 'grid';
+        statusEl.textContent = win ? 'WIN' : 'LOSS';
+      }
+
+      function showIntroMessage() {
+        const msg = document.getElementById('introMsg');
+        msg.classList.add('show');
+        setTimeout(() => {
+          msg.classList.remove('show');
+        }, 3000); // visible for 3 seconds
+      }
 
 
       function triggerJumpscare() {
@@ -897,7 +932,7 @@
         const sx = (vec.x * 0.5 + 0.5) * window.innerWidth, sy = (-vec.y * 0.5 + 0.5) * window.innerHeight;
         if (vec.z > 1 || vec.z < -1) { buttonLabel.style.display = 'none'; } else {
           buttonLabel.style.display = 'block';
-          buttonLabel.textContent = CONFIG.BUTTON_LABEL;
+          //buttonLabel.textContent = CONFIG.BUTTON_LABEL;
           buttonLabel.style.left = Math.round(sx - buttonLabel.offsetWidth / 2) + 'px';
           buttonLabel.style.top = Math.round(sy - 30) + 'px';
         }
@@ -1037,6 +1072,7 @@
         menu.style.display = 'none';
         stage.style.display = 'block';
         state = 'run';
+        showIntroMessage();
         running = true;
 
         try {
